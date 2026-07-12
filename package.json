@@ -6,7 +6,10 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -39,7 +42,6 @@
     "test": "tsx --test src/*.test.ts"
   },
   "devDependencies": {
-    "@mailtea/contracts": "workspace:*",
     "tsup": "^8.4.0",
     "tsx": "^4.20.5",
     "typescript": "^5.8.2"
