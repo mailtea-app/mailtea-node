@@ -1,0 +1,47 @@
+{
+  "name": "mailtea",
+  "version": "0.1.0",
+  "description": "Mailtea Node.js SDK — send, schedule, and manage email, contacts, and segments from your app or AI agent.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "keywords": [
+    "mailtea",
+    "email",
+    "newsletter",
+    "transactional-email",
+    "sdk",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mailtea-app/mailtea.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://mailtea.app",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsup src/index.ts --watch --format esm --dts",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepublishOnly": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No lint for mailtea yet\"",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "devDependencies": {
+    "@mailtea/contracts": "workspace:*",
+    "tsup": "^8.4.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.2"
+  }
+}
