@@ -32,7 +32,7 @@ function readEnvApiKey(): string | undefined {
  * The Mailtea client. Construct it with an API key, then use its resources:
  *
  * ```ts
- * import { Mailtea } from "mailtea";
+ * import { Mailtea } from "@mailtea-app/sdk";
  *
  * const mailtea = new Mailtea(process.env.MAILTEA_API_KEY);
  * const { id } = await mailtea.emails.send({
