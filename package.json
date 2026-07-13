@@ -1,6 +1,6 @@
 {
-  "name": "@mailtea-app/sdk",
-  "version": "0.1.0",
+  "name": "mailtea-sdk",
+  "version": "0.1.1",
   "description": "Mailtea Node.js SDK — send, schedule, and manage email, contacts, and segments from your app or AI agent.",
   "license": "MIT",
   "type": "module",

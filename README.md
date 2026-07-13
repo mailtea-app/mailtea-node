@@ -1,4 +1,4 @@
-# @mailtea-app/sdk
+# mailtea-sdk
 
 The official Node.js SDK for [Mailtea](https://mailtea.app) — a thin, typed
 wrapper over the [REST API](https://api.mailtea.app). Works in Node.js 18+, Bun,
@@ -7,13 +7,13 @@ Deno, and edge runtimes with a global `fetch`.
 ## Install
 
 ```bash
-npm install @mailtea-app/sdk
+npm install mailtea-sdk
 ```
 
 ## Usage
 
 ```ts
-import { Mailtea } from "@mailtea-app/sdk";
+import { Mailtea } from "mailtea-sdk";
 
 const mailtea = new Mailtea(process.env.MAILTEA_API_KEY);
 
