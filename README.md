@@ -47,7 +47,10 @@ const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:8787" });
 | `emails.update(id, { scheduled_at })` | Reschedule a scheduled email |
 | `emails.reschedule(id, scheduledAt)` | Convenience wrapper over `update` |
 | `emails.cancel(id)` | Cancel a scheduled email |
-| `contacts.create / list / get / update / delete` | Manage audience contacts |
+| `contacts.create / upsert / list / get / update / delete` | Manage audience contacts (`upsert` = `create`; the endpoint upserts) |
+| `posts.create(input)` | Create a newsletter post (draft, or `send: true`) → `{ id }` |
+| `posts.send(id, { scheduled_at? })` | Send a draft post to the audience, now or scheduled |
+| `posts.sendTest(id, input)` | Send a `[TEST]` copy of a post → `{ sent_to, failed_to }` |
 | `segments.create / list / get / update / delete` | Manage segments |
 | `tags.create / list / get / update / delete` | Manage tags |
 | `domains.create / list / get / verify / update / delete` | Manage sending domains (add, read DNS records, verify) |

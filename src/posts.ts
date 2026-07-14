@@ -48,6 +48,18 @@ export interface CreatePostResult {
   id: string;
 }
 
+/** Input for `posts.send`. */
+export interface SendPostInput {
+  /** ISO-8601; schedules the send instead of sending now. */
+  scheduled_at?: string;
+}
+
+/** Result of `posts.send`. */
+export interface SendPostResult {
+  object: "post";
+  id: string;
+}
+
 /**
  * The `posts` resource (newsletter posts/issues). Access via `mailtea.posts`.
  */
@@ -62,6 +74,19 @@ export class Posts {
    */
   create(input: CreatePostInput): Promise<CreatePostResult> {
     return this.request<CreatePostResult>("POST", "/v1/posts", input);
+  }
+
+  /**
+   * Send a draft post to the publication's audience — immediately, or at
+   * `scheduled_at` (ISO-8601) if given. Requires the `issues:send` scope.
+   * Returns `{ id }`.
+   */
+  send(id: string, input?: SendPostInput): Promise<SendPostResult> {
+    return this.request<SendPostResult>(
+      "POST",
+      `/v1/posts/${encodeURIComponent(id)}/send`,
+      input
+    );
   }
 
   /**

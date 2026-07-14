@@ -24,6 +24,22 @@ test("contacts.create POSTs /v1/contacts with the body", async () => {
   assert.deepEqual(JSON.parse(call.body ?? "null"), { publication_id: PUB, email: "a@b.com" });
 });
 
+test("contacts.upsert is contacts.create (POST /v1/contacts)", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "contact", id: "ct_1", publication_id: PUB, email: "a@b.com", status: "active" }
+  });
+  const c = await mailtea.contacts.upsert({ publication_id: PUB, email: "a@b.com", status: "active" });
+  assert.equal(c.id, "ct_1");
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/contacts");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    email: "a@b.com",
+    status: "active"
+  });
+});
+
 test("contacts.list builds the query string and returns the list envelope", async () => {
   const { mailtea, mock } = client({
     json: { object: "list", data: [], has_more: false }

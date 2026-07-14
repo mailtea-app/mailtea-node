@@ -41,6 +41,14 @@ export class Contacts {
     return this.request<Contact>("POST", "/v1/contacts", input);
   }
 
+  /**
+   * Create the contact or update it in place — alias of `create`, named for
+   * what `POST /v1/contacts` actually does.
+   */
+  upsert(input: CreateContactInput): Promise<Contact> {
+    return this.create(input);
+  }
+
   /** List contacts in a publication. Supports cursor pagination via `after`. */
   list(params: ListContactsParams): Promise<ListResponse<Contact>> {
     return this.request<ListResponse<Contact>>(

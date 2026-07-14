@@ -68,6 +68,30 @@ test("posts.create passes inline html when no template", async () => {
   });
 });
 
+test("posts.send POSTs /v1/posts/:id/send with no body when immediate", async () => {
+  const mock = createMockFetch({ json: { object: "post", id: "iss_1" } });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+
+  const result = await mailtea.posts.send("iss_1");
+
+  assert.equal(result.id, "iss_1");
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/posts/iss_1/send");
+  assert.equal(call.body, null);
+});
+
+test("posts.send passes scheduled_at to schedule the send", async () => {
+  const mock = createMockFetch({ json: { object: "post", id: "iss_1" } });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+
+  await mailtea.posts.send("iss_1", { scheduled_at: "2026-06-01T15:00:00Z" });
+
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    scheduled_at: "2026-06-01T15:00:00Z"
+  });
+});
+
 test("posts.sendTest URL-encodes the post id", async () => {
   const mock = createMockFetch({ json: { object: "test_send", id: "x", sent_to: [], failed_to: [] } });
   const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
