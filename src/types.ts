@@ -9,9 +9,13 @@ export interface TemplateRef {
   variables?: Record<string, string | number>;
 }
 
-/** Input for `emails.send`. Provide inline content (`html`/`text`) OR a `template`. */
+/** Input for `emails.send`. Provide inline content (`html`/`text`) OR a `template`.
+ *  Provide exactly one of `from` or `sender_id`. */
 export interface SendEmailInput {
-  from: string;
+  /** From header, e.g. `Acme <hello@acme.com>`. Mutually exclusive with `sender_id`. */
+  from?: string;
+  /** A verified publication sender to send as. Mutually exclusive with `from`. */
+  sender_id?: string;
   to: string | string[];
   subject: string;
   html?: string;
@@ -33,8 +37,13 @@ export interface SendEmailInput {
   }>;
 }
 
-/** One item in an `emails.batch` call — like `SendEmailInput` minus attachments/scheduling. */
-export type BatchEmailItemInput = Omit<SendEmailInput, "attachments" | "scheduled_at">;
+/** One item in an `emails.batch` call — like `SendEmailInput` minus
+ *  attachments/scheduling. Batch items require an explicit `from` (sender_id is
+ *  single-send only). */
+export type BatchEmailItemInput = Omit<
+  SendEmailInput,
+  "attachments" | "scheduled_at" | "sender_id" | "from"
+> & { from: string };
 
 /** Input for `emails.batch` (1–100 items). */
 export type BatchEmailInput = BatchEmailItemInput[];
