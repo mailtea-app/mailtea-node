@@ -1,4 +1,22 @@
-import type { RequestFn } from "./resource.js";
+import type { RequestFn, DeletedResponse } from "./resource.js";
+import { query } from "./resource.js";
+
+export type PostStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
+
+/** A newsletter post (issue). Returned by `posts.list`, `posts.get`. */
+export interface Post {
+  object: "post";
+  id: string;
+  publication_id: string;
+  name: string;
+  subject: string;
+  status: PostStatus;
+  html: string | null;
+  text: string | null;
+  created_at: string;
+  scheduled_at: string | null;
+  sent_at: string | null;
+}
 
 /** Input for `posts.sendTest`. */
 export interface SendPostTestInput {
@@ -34,12 +52,50 @@ export interface CreatePostInput {
   variables?: Record<string, string | number>;
   /** Inline HTML body (use this OR `template_id`). */
   html?: string;
+  /** Inline plain-text body. */
+  text?: string;
+  /** From header, e.g. `Acme <hello@acme.com>`. Must use a verified domain. */
+  from?: string;
+  reply_to?: string;
+  /** Internal name/working title (defaults to `subject`). */
+  name?: string;
   /** `newsletter` (default, can publish to the site) or `broadcast` (email-only). */
   kind?: "newsletter" | "broadcast";
   /** Send right after creating (requires the `issues:send` scope). */
   send?: boolean;
   /** ISO-8601; with `send`, schedules the send instead of sending now. */
   scheduled_at?: string;
+}
+
+/** Filters + offset pagination for `posts.list`. */
+export interface ListPostsParams {
+  publication_id: string;
+  limit?: number;
+  offset?: number;
+  status?: PostStatus;
+  kind?: "newsletter" | "broadcast";
+}
+
+/** Offset-paginated list returned by `posts.list`. */
+export interface PostListResponse {
+  data: Post[];
+  total: number;
+}
+
+/** Input for `posts.update` (draft posts only). */
+export interface UpdatePostInput {
+  subject?: string;
+  html?: string;
+  text?: string;
+  from?: string;
+  reply_to?: string;
+  name?: string;
+}
+
+/** Result of `posts.update`. */
+export interface UpdatePostResult {
+  object: "post";
+  id: string;
 }
 
 /** Result of `posts.create`. */
@@ -77,6 +133,31 @@ export class Posts {
   }
 
   /**
+   * List posts in a publication (most recent first), optionally filtered by
+   * `status` or `kind`, and offset-paginated. Returns `{ data, total }`.
+   */
+  list(params: ListPostsParams): Promise<PostListResponse> {
+    return this.request<PostListResponse>(
+      "GET",
+      `/v1/posts${query({ ...params })}`
+    );
+  }
+
+  /** Retrieve a single post. */
+  get(id: string): Promise<Post> {
+    return this.request<Post>("GET", `/v1/posts/${encodeURIComponent(id)}`);
+  }
+
+  /** Update a draft post. Only posts still in the `draft` state can be updated. */
+  update(id: string, input: UpdatePostInput): Promise<UpdatePostResult> {
+    return this.request<UpdatePostResult>(
+      "PATCH",
+      `/v1/posts/${encodeURIComponent(id)}`,
+      input
+    );
+  }
+
+  /**
    * Send a draft post to the publication's audience — immediately, or at
    * `scheduled_at` (ISO-8601) if given. Requires the `issues:send` scope.
    * Returns `{ id }`.
@@ -100,6 +181,14 @@ export class Posts {
       "POST",
       `/v1/posts/${encodeURIComponent(id)}/test`,
       input
+    );
+  }
+
+  /** Delete a draft post. Only posts still in the `draft` state can be deleted. */
+  delete(id: string): Promise<DeletedResponse> {
+    return this.request<DeletedResponse>(
+      "DELETE",
+      `/v1/posts/${encodeURIComponent(id)}`
     );
   }
 }

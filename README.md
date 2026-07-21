@@ -51,13 +51,20 @@ const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:8787" });
 | `posts.create(input)` | Create a newsletter post (draft, or `send: true`) → `{ id }` |
 | `posts.send(id, { scheduled_at? })` | Send a draft post to the audience, now or scheduled |
 | `posts.sendTest(id, input)` | Send a `[TEST]` copy of a post → `{ sent_to, failed_to }` |
+| `posts.list / get / update / delete` | Manage posts (list is offset-based; update/delete draft-only) |
 | `segments.create / list / get / update / delete` | Manage segments |
 | `tags.create / list / get / update / delete` | Manage tags |
+| `senders.create / list / get / update / delete` | Manage named from-identities on verified sending domains |
 | `domains.create / list / get / verify / update / delete` | Manage sending domains (add, read DNS records, verify) |
 | `domains.tracking.create / list / verify / delete` | Manage CNAME tracking sub-domains under a domain |
+| `suppressions.list / add / remove / export` | Org-wide suppression list (`export` returns CSV text) |
+| `templates.render / create / list / get / update / publish / duplicate / delete` | Manage stored email templates (`render` previews a spec without saving) |
 | `webhooks.create / list / get / update / delete` | Manage outbound event subscriptions |
 | `contactProperties.create / list / update / delete` | Manage custom contact fields (team-scoped) |
 | `apiKeys.create / list / revoke` | Manage API keys (`settings:write`) |
+
+`emails.send` and `emails.batch` accept an options argument to set an
+idempotency key: `mailtea.emails.send(input, { idempotencyKey: "order-42" })`.
 
 The audience resources are scoped to a publication — pass `publication_id`:
 

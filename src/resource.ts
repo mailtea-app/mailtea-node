@@ -1,8 +1,16 @@
 export type RequestFn = <T>(
   method: string,
   path: string,
-  body?: unknown
+  body?: unknown,
+  headers?: Record<string, string>
 ) => Promise<T>;
+
+/**
+ * Like {@link RequestFn} but returns the raw response body as text instead of
+ * JSON-parsing it — used by endpoints that reply with `text/csv` rather than
+ * JSON (e.g. `GET /v1/suppressions/export`).
+ */
+export type TextRequestFn = (method: string, path: string) => Promise<string>;
 
 /** Standard list-response envelope used by the audience endpoints. */
 export interface ListResponse<T> {

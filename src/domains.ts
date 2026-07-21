@@ -3,13 +3,19 @@ import { query } from "./resource.js";
 
 export type DomainStatus = "pending" | "verified";
 export type DomainPurpose = "email" | "site" | "both";
+/** DKIM verification state for an email-purpose domain. */
+export type DkimStatus = "pending" | "verified" | "failed";
 
 export interface DomainRecord {
   record?: string;
   type: string;
   name: string;
   value: string;
-  status: DomainStatus;
+  /** MX priority (present on the inbound MX record). */
+  priority?: number;
+  /** What the record is for, e.g. `receiving` or `dkim`. */
+  purpose?: string;
+  status: DomainStatus | "failed";
 }
 
 export interface Domain {
@@ -19,13 +25,24 @@ export interface Domain {
   name: string;
   status: DomainStatus;
   purpose: DomainPurpose;
+  /** Mailtea-managed domain (born verified, owns no DNS records). */
+  is_system: boolean;
   is_primary: boolean;
   proxy_target: string;
   /** DNS records to add before verifying. Present on create/get/verify. */
   records?: DomainRecord[];
+  /** DKIM state. Present on create/get/verify; omitted from list rows. */
+  dkim_status?: DkimStatus | null;
   verified_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Response of `domains.verify` — a {@link Domain} plus the operational MX check. */
+export interface VerifiedDomain extends Domain {
+  /** Whether the host's MX points at our inbound endpoint (email-purpose only;
+   *  `null` for site-only domains). */
+  receiving_mx_found: boolean | null;
 }
 
 export interface CreateDomainInput {
@@ -157,8 +174,8 @@ export class Domains {
   }
 
   /** Verify a domain by checking its DNS records; `status` becomes `verified`. */
-  verify(id: string, params: { publication_id: string }): Promise<Domain> {
-    return this.request<Domain>(
+  verify(id: string, params: { publication_id: string }): Promise<VerifiedDomain> {
+    return this.request<VerifiedDomain>(
       "POST",
       `/v1/domains/${encodeURIComponent(id)}/verify${query({ ...params })}`
     );

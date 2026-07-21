@@ -18,6 +18,22 @@ import { InboundEmails } from "./inbound.js";
 
 export type { RequestFn };
 
+/** Per-call options for the send/batch endpoints. */
+export interface SendOptions {
+  /**
+   * Sets the `Idempotency-Key` header. Replaying the same key with the same body
+   * returns the original response; a different body with the same key → 409.
+   */
+  idempotencyKey?: string;
+}
+
+/** Build the header overlay for a call from {@link SendOptions}. */
+function sendHeaders(options?: SendOptions): Record<string, string> | undefined {
+  return options?.idempotencyKey
+    ? { "Idempotency-Key": options.idempotencyKey }
+    : undefined;
+}
+
 /**
  * The `emails` resource. Access via `mailtea.emails`.
  */
@@ -38,8 +54,16 @@ export class Emails {
    *
    * @returns the new email's `id`.
    */
-  async send(payload: SendEmailInput): Promise<SendEmailResponse> {
-    return this.request<SendEmailResponse>("POST", "/v1/emails", payload);
+  async send(
+    payload: SendEmailInput,
+    options?: SendOptions
+  ): Promise<SendEmailResponse> {
+    return this.request<SendEmailResponse>(
+      "POST",
+      "/v1/emails",
+      payload,
+      sendHeaders(options)
+    );
   }
 
   /**
@@ -48,11 +72,15 @@ export class Emails {
    *
    * @returns `{ data: [{ id }, ...] }` in request order.
    */
-  async batch(payload: BatchEmailInput): Promise<BatchEmailResponse> {
+  async batch(
+    payload: BatchEmailInput,
+    options?: SendOptions
+  ): Promise<BatchEmailResponse> {
     return this.request<BatchEmailResponse>(
       "POST",
       "/v1/emails/batch",
-      payload
+      payload,
+      sendHeaders(options)
     );
   }
 

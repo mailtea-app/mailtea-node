@@ -3,6 +3,9 @@ import { Contacts } from "./contacts.js";
 import { Segments } from "./segments.js";
 import { Tags } from "./tags.js";
 import { Posts } from "./posts.js";
+import { Senders } from "./senders.js";
+import { Suppressions } from "./suppressions.js";
+import { Templates } from "./templates.js";
 import { Domains } from "./domains.js";
 import { Webhooks } from "./webhooks.js";
 import { ContactProperties } from "./contact-properties.js";
@@ -55,8 +58,14 @@ export class Mailtea {
   readonly segments: Segments;
   /** The `tags` resource: create, list, get, update, delete. */
   readonly tags: Tags;
-  /** The `posts` resource: sendTest (newsletter posts). */
+  /** The `posts` resource: create, list, get, update, send, sendTest, delete. */
   readonly posts: Posts;
+  /** The `senders` resource: create, list, get, update, delete. */
+  readonly senders: Senders;
+  /** The `suppressions` resource: add, remove, list, export. */
+  readonly suppressions: Suppressions;
+  /** The `templates` resource: render, create, list, get, update, publish, duplicate, delete. */
+  readonly templates: Templates;
   /** The `domains` resource: create, list, get, verify, update, delete. */
   readonly domains: Domains;
   /** The `webhooks` resource: create, list, get, update, delete. */
@@ -99,56 +108,79 @@ export class Mailtea {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.fetchImpl = resolvedFetch;
     const request = this.request.bind(this);
+    const requestText = this.requestText.bind(this);
     this.emails = new Emails(request);
     this.contacts = new Contacts(request);
     this.segments = new Segments(request);
     this.tags = new Tags(request);
     this.posts = new Posts(request);
+    this.senders = new Senders(request);
+    this.suppressions = new Suppressions(request, requestText);
+    this.templates = new Templates(request);
     this.domains = new Domains(request);
     this.webhooks = new Webhooks(request);
     this.contactProperties = new ContactProperties(request);
     this.apiKeys = new ApiKeys(request);
   }
 
-  /** @internal Issue an authenticated request and map errors to MailteaError. */
-  private async request<T>(
+  /** @internal Issue an authenticated request. `extraHeaders` overlay per-call
+   *  headers (e.g. `Idempotency-Key`) on top of the auth/content-type defaults. */
+  private async dispatch(
     method: string,
     path: string,
-    body?: unknown
-  ): Promise<T> {
+    body?: unknown,
+    extraHeaders?: Record<string, string>
+  ): Promise<Response> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiKey}`
     };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
     }
+    if (extraHeaders) {
+      Object.assign(headers, extraHeaders);
+    }
 
-    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+    return this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body)
     });
+  }
 
+  /** @internal Throw a {@link MailteaError} for a non-2xx response. */
+  private async throwForStatus(response: Response): Promise<never> {
     const requestId = response.headers.get("x-request-id") ?? undefined;
+    let message = `${response.status} ${response.statusText}`.trim();
+    let details: unknown;
+    try {
+      const errorBody = (await response.json()) as {
+        error?: string;
+        details?: unknown;
+      } | null;
+      if (errorBody?.error) message = errorBody.error;
+      details = errorBody?.details;
+    } catch {
+      // Non-JSON error body — keep the status-line message.
+    }
+    throw new MailteaError(message, {
+      status: response.status,
+      details,
+      requestId
+    });
+  }
+
+  /** @internal Issue an authenticated request and map errors to MailteaError. */
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    extraHeaders?: Record<string, string>
+  ): Promise<T> {
+    const response = await this.dispatch(method, path, body, extraHeaders);
 
     if (!response.ok) {
-      let message = `${response.status} ${response.statusText}`.trim();
-      let details: unknown;
-      try {
-        const errorBody = (await response.json()) as {
-          error?: string;
-          details?: unknown;
-        } | null;
-        if (errorBody?.error) message = errorBody.error;
-        details = errorBody?.details;
-      } catch {
-        // Non-JSON error body — keep the status-line message.
-      }
-      throw new MailteaError(message, {
-        status: response.status,
-        details,
-        requestId
-      });
+      await this.throwForStatus(response);
     }
 
     if (response.status === 204) {
@@ -158,5 +190,15 @@ export class Mailtea {
     // body — tolerate that rather than throwing on a JSON parse of "".
     const text = await response.text();
     return (text ? (JSON.parse(text) as T) : (undefined as T));
+  }
+
+  /** @internal Issue an authenticated request and return the raw text body —
+   *  for endpoints that reply with `text/csv` rather than JSON. */
+  private async requestText(method: string, path: string): Promise<string> {
+    const response = await this.dispatch(method, path);
+    if (!response.ok) {
+      await this.throwForStatus(response);
+    }
+    return response.text();
   }
 }
