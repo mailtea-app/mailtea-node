@@ -86,7 +86,8 @@ export class Emails {
 
   /**
    * List transactional emails (most recent first), optionally filtered by
-   * status, tags, or a `created_at` date range, and offset-paginated.
+   * status, tags, a `created_at` date range, or a `search` substring over
+   * recipient/sender/subject, and offset-paginated.
    *
    * @returns `{ data, total, limit, offset, has_more }`.
    */

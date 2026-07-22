@@ -74,13 +74,13 @@ test("list GETs /v1/emails with filters and returns the envelope", async () => {
       has_more: false
     }
   });
-  const result = await mailtea.emails.list({ status: "sent", limit: 10 });
+  const result = await mailtea.emails.list({ status: "sent", limit: 10, search: "invoice" });
 
   assert.equal(result.total, 1);
   assert.equal(result.data[0]?.id, "e1");
   const call = requireCall(mock.calls, 0);
   assert.equal(call.method, "GET");
-  assert.equal(call.url, "https://api.mailtea.app/v1/emails?status=sent&limit=10");
+  assert.equal(call.url, "https://api.mailtea.app/v1/emails?status=sent&limit=10&search=invoice");
   assert.equal(call.body, null);
 });
 

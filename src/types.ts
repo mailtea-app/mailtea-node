@@ -151,6 +151,8 @@ export interface ListEmailsParams {
   status?: EmailStatus;
   tag_name?: string;
   tag_value?: string;
+  /** Case-insensitive substring match on recipient, sender, or subject. */
+  search?: string;
   /** ISO 8601 lower bound on `created_at`. */
   from_date?: string;
   /** ISO 8601 upper bound on `created_at`. */
