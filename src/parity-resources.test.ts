@@ -156,6 +156,66 @@ test("templates.create POSTs /v1/templates with publication_id in the body", asy
   });
 });
 
+test("templates.create sends editor_doc with its sidecars and library metadata", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "template", id: "etpl_1", format: "editor", status: "draft" }
+  });
+  const editorDoc = {
+    type: "doc" as const,
+    content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }]
+  };
+  await mailtea.templates.create({
+    publication_id: PUB,
+    name: "Editor design",
+    editor_doc: editorDoc,
+    style_profile: { body: { backgroundColor: "#ffffff" } },
+    mailtea_theme: { accent: "#2563eb" },
+    global_css: ".mt-btn { color: red; }",
+    category: "Newsletter",
+    preview_image_url: "https://cdn.acme.com/preview.png",
+    tags: ["welcome", "onboarding"]
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/templates");
+  // No `html` — the server renders it from `editor_doc`, and sending one
+  // alongside is refused.
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    name: "Editor design",
+    editor_doc: editorDoc,
+    style_profile: { body: { backgroundColor: "#ffffff" } },
+    mailtea_theme: { accent: "#2563eb" },
+    global_css: ".mt-btn { color: red; }",
+    category: "Newsletter",
+    preview_image_url: "https://cdn.acme.com/preview.png",
+    tags: ["welcome", "onboarding"]
+  });
+});
+
+test("templates.update sends nullable library fields as explicit nulls", async () => {
+  const { mailtea, mock } = client({ json: { object: "template", id: "etpl_1" } });
+  await mailtea.templates.update("etpl_1", {
+    publication_id: PUB,
+    global_css: null,
+    category: null,
+    preview_image_url: null,
+    tags: null
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "PATCH");
+  assert.equal(call.url, "https://api.mailtea.app/v1/templates/etpl_1?publication_id=pub_123");
+  // The nulls are how a caller clears these — they must survive serialization
+  // rather than being stripped as absent.
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    global_css: null,
+    category: null,
+    preview_image_url: null,
+    tags: null
+  });
+});
+
 test("templates.update PATCHes with publication_id in the query", async () => {
   const { mailtea, mock } = client({ json: { object: "template", id: "etpl_1" } });
   await mailtea.templates.update("etpl_1", { publication_id: PUB, subject: null, name: "Renamed" });
@@ -167,6 +227,20 @@ test("templates.update PATCHes with publication_id in the query", async () => {
     subject: null,
     name: "Renamed"
   });
+});
+
+test("templates.unpublish POSTs /v1/templates/:id/unpublish with no body", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "template", id: "etpl_1", status: "draft", published_at: "2026-01-01T00:00:00.000Z" }
+  });
+  const tpl = await mailtea.templates.unpublish("etpl_1", { publication_id: PUB });
+  assert.equal(tpl.status, "draft");
+  // published_at survives unpublishing — it is history, not current state.
+  assert.equal(tpl.published_at, "2026-01-01T00:00:00.000Z");
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/templates/etpl_1/unpublish?publication_id=pub_123");
+  assert.equal(call.body, null);
 });
 
 test("templates.publish/duplicate/delete target the right paths", async () => {

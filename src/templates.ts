@@ -2,6 +2,7 @@ import type { RequestFn, ListResponse, DeletedResponse } from "./resource.js";
 import { query } from "./resource.js";
 
 export type TemplateStatus = "draft" | "published";
+export type TemplateFormat = "html" | "spec" | "editor";
 export type TemplateVariableType = "string" | "number";
 
 export interface TemplateVariable {
@@ -24,6 +25,15 @@ export interface TemplateSpec {
   elements: Record<string, TemplateSpecElement>;
 }
 
+/** The design source behind `format: "editor"` — a TipTap/ProseMirror document.
+ *  Left open because the node set depends on which editor extensions are in
+ *  play; the server is what validates it and bakes the `html` from it. */
+export interface EditorDocument {
+  type: "doc";
+  content: unknown[];
+  [key: string]: unknown;
+}
+
 export interface Template {
   object: "template";
   id: string;
@@ -32,7 +42,15 @@ export interface Template {
   description: string;
   html: string;
   spec: TemplateSpec | null;
-  format: string;
+  /** Null on every `html` and `spec` template — only editor designs carry it. */
+  editor_doc: EditorDocument | null;
+  style_profile: Record<string, unknown> | null;
+  mailtea_theme: Record<string, unknown> | null;
+  global_css: string | null;
+  category: string | null;
+  preview_image_url: string | null;
+  tags: string[];
+  format: TemplateFormat;
   text: string | null;
   subject: string | null;
   from: string | null;
@@ -45,14 +63,18 @@ export interface Template {
 }
 
 /** A row returned by `templates.list` — omits the body fields (`html`, `spec`,
- *  `text`, `subject`, `from`, `reply_to`, `variables`). */
+ *  `editor_doc`, its style sidecars, `text`, `subject`, `from`, `reply_to`,
+ *  `variables`). The library metadata stays: it is what a gallery renders. */
 export interface TemplateListItem {
   object: "template";
   id: string;
   publication_id: string;
   name: string;
   description: string;
-  format: string;
+  category: string | null;
+  preview_image_url: string | null;
+  tags: string[];
+  format: TemplateFormat;
   status: TemplateStatus;
   published_at: string | null;
   created_at: string;
@@ -69,12 +91,21 @@ export interface RenderedTemplate {
   text: string;
 }
 
-/** Create a template. Provide either `html` or `spec` (not both). */
+/** Create a template. Provide exactly one content source: `html`, `spec` or
+ *  `editor_doc`. The editor path is server-rendered — the API bakes the `html`
+ *  from the doc, so sending your own alongside it is rejected. */
 export interface CreateTemplateInput {
   publication_id: string;
   name: string;
   html?: string;
   spec?: TemplateSpec;
+  editor_doc?: EditorDocument;
+  style_profile?: Record<string, unknown>;
+  mailtea_theme?: Record<string, unknown>;
+  global_css?: string;
+  category?: string;
+  preview_image_url?: string;
+  tags?: string[];
   description?: string;
   text?: string;
   subject?: string;
@@ -83,13 +114,21 @@ export interface CreateTemplateInput {
   variables?: TemplateVariable[];
 }
 
-/** Update a template. `text`/`subject`/`from`/`reply_to` are nullable (pass
- *  `null` to clear). `publication_id` is required (sent in the query string). */
+/** Update a template. `text`/`subject`/`from`/`reply_to`/`global_css`/
+ *  `category`/`preview_image_url`/`tags` are nullable (pass `null` to clear).
+ *  `publication_id` is required (sent in the query string). */
 export interface UpdateTemplateInput {
   publication_id: string;
   name?: string;
   html?: string;
   spec?: TemplateSpec;
+  editor_doc?: EditorDocument;
+  style_profile?: Record<string, unknown>;
+  mailtea_theme?: Record<string, unknown>;
+  global_css?: string | null;
+  category?: string | null;
+  preview_image_url?: string | null;
+  tags?: string[] | null;
   description?: string;
   text?: string | null;
   subject?: string | null;
@@ -116,7 +155,7 @@ export class Templates {
     return this.request<RenderedTemplate>("POST", "/v1/templates/render", input);
   }
 
-  /** Create a template from `html` or a `spec`. */
+  /** Create a template from `html`, a `spec`, or an `editor_doc`. */
   create(input: CreateTemplateInput): Promise<Template> {
     return this.request<Template>("POST", "/v1/templates", input);
   }
@@ -153,6 +192,15 @@ export class Templates {
     return this.request<Template>(
       "POST",
       `/v1/templates/${encodeURIComponent(id)}/publish${query({ ...params })}`
+    );
+  }
+
+  /** Return a published template to draft. `published_at` is kept — it records
+   *  that the template was published once, not that it still is. */
+  unpublish(id: string, params: { publication_id: string }): Promise<Template> {
+    return this.request<Template>(
+      "POST",
+      `/v1/templates/${encodeURIComponent(id)}/unpublish${query({ ...params })}`
     );
   }
 
