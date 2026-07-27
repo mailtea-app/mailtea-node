@@ -16,6 +16,9 @@ export { Domains } from "./domains.js";
 export { Webhooks } from "./webhooks.js";
 export { ContactProperties } from "./contact-properties.js";
 export { ApiKeys } from "./api-keys.js";
+export { Automations } from "./automations.js";
+export { AutomationRuns } from "./automation-runs.js";
+export { Events, EventDefinitions } from "./events.js";
 export {
   verifyWebhookSignature,
   signWebhook
@@ -38,3 +41,6 @@ export type * from "./domains.js";
 export type * from "./webhooks.js";
 export type * from "./contact-properties.js";
 export type * from "./api-keys.js";
+export type * from "./automations.js";
+export type * from "./automation-runs.js";
+export type * from "./events.js";

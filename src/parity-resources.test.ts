@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Mailtea } from "./index.js";
+import type { AutomationValidation } from "./automations.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
 function client(spec: Parameters<typeof createMockFetch>[0]) {
@@ -189,6 +190,446 @@ test("templates.publish/duplicate/delete target the right paths", async () => {
   const delCall = requireCall(mk3.calls, 0);
   assert.equal(delCall.method, "DELETE");
   assert.equal(delCall.url, "https://api.mailtea.app/v1/templates/etpl_1?publication_id=pub_123");
+});
+
+// --- automations ----------------------------------------------------------
+
+const TRIGGER_STEP = { key: "start", type: "trigger" as const, config: { trigger_type: "contact.created" } };
+const DELAY_STEP = { key: "wait", type: "delay" as const, config: { duration: 2, unit: "days" } };
+
+test("automations.validate POSTs /v1/automations/validate with publication_id in the body", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_validation", valid: true, issues: [] }
+  });
+  const result = await mailtea.automations.validate({
+    publication_id: PUB,
+    steps: [TRIGGER_STEP, DELAY_STEP]
+  });
+  assert.equal(result.valid, true);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/validate");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    steps: [TRIGGER_STEP, DELAY_STEP]
+  });
+});
+
+test("automations.create POSTs /v1/automations with publication_id in the body", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation", id: "aut_1", status: "draft" }
+  });
+  await mailtea.automations.create({
+    publication_id: PUB,
+    name: "Welcome",
+    steps: [TRIGGER_STEP, DELAY_STEP],
+    connections: [{ from: "start", to: "wait", branch: "next" }],
+    reentry_policy: "once"
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  // No query string — publication_id rides in the body on this verb.
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    name: "Welcome",
+    steps: [TRIGGER_STEP, DELAY_STEP],
+    connections: [{ from: "start", to: "wait", branch: "next" }],
+    reentry_policy: "once"
+  });
+});
+
+test("automations.create with validate_only narrows to the validation shape", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_validation", valid: false, issues: [{ code: "missing_trigger", severity: "error", message: "no trigger" }] }
+  });
+  // Typed as AutomationValidation, not Automation — the overload does the narrowing.
+  const validation: AutomationValidation = await mailtea.automations.create({
+    publication_id: PUB,
+    name: "Welcome",
+    steps: [DELAY_STEP],
+    validate_only: true
+  });
+  assert.equal(validation.valid, false);
+  assert.equal(validation.issues[0]?.code, "missing_trigger");
+  const call = requireCall(mock.calls, 0);
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    name: "Welcome",
+    steps: [DELAY_STEP],
+    validate_only: true
+  });
+});
+
+test("automations.list and get build the right URLs", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.automations.list({ publication_id: PUB, status: "active", limit: 5, after: "cur_1" });
+  const list = requireCall(mock.calls, 0);
+  assert.equal(list.method, "GET");
+  assert.equal(
+    list.url,
+    "https://api.mailtea.app/v1/automations?publication_id=pub_123&status=active&limit=5&after=cur_1"
+  );
+
+  const { mailtea: m2, mock: mk2 } = client({ json: { object: "automation", id: "aut_1" } });
+  await m2.automations.get("aut_1", { publication_id: PUB });
+  assert.equal(
+    requireCall(mk2.calls, 0).url,
+    "https://api.mailtea.app/v1/automations/aut_1?publication_id=pub_123"
+  );
+});
+
+test("automations.update PATCHes with publication_id in the query, never in the body", async () => {
+  const { mailtea, mock } = client({ json: { object: "automation", id: "aut_1" } });
+  await mailtea.automations.update("aut_1", {
+    publication_id: PUB,
+    name: "Renamed",
+    steps: [TRIGGER_STEP],
+    connections: []
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "PATCH");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/aut_1?publication_id=pub_123");
+  // The server's update schema has no publication_id — it must be stripped.
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    name: "Renamed",
+    steps: [TRIGGER_STEP],
+    connections: []
+  });
+});
+
+test("automations.update with validate_only narrows to the validation shape", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_validation", valid: true, issues: [] }
+  });
+  const validation: AutomationValidation = await mailtea.automations.update("aut_1", {
+    publication_id: PUB,
+    steps: [TRIGGER_STEP],
+    validate_only: true
+  });
+  assert.equal(validation.object, "automation_validation");
+  const call = requireCall(mock.calls, 0);
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    steps: [TRIGGER_STEP],
+    validate_only: true
+  });
+});
+
+test("automations.delete DELETEs /v1/automations/:id with publication_id in the query", async () => {
+  const { mailtea, mock } = client({ json: { object: "automation", id: "aut_1", deleted: true } });
+  const res = await mailtea.automations.delete("aut_1", { publication_id: PUB });
+  assert.equal(res.deleted, true);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "DELETE");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/aut_1?publication_id=pub_123");
+});
+
+test("automations.activate POSTs /:id/activate with no body", async () => {
+  const { mailtea, mock } = client({ json: { object: "automation", id: "aut_1", status: "active" } });
+  await mailtea.automations.activate("aut_1", { publication_id: PUB });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/automations/aut_1/activate?publication_id=pub_123"
+  );
+  assert.equal(call.body, null);
+});
+
+test("automations.pause sends no body when cancel_runs is omitted", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation", id: "aut_1", status: "paused", canceled_runs: 0 }
+  });
+  const res = await mailtea.automations.pause("aut_1", { publication_id: PUB });
+  assert.equal(res.canceled_runs, 0);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/aut_1/pause?publication_id=pub_123");
+  // No body at all, so the server's default (false for pause) applies.
+  assert.equal(call.body, null);
+});
+
+test("automations.pause and archive send cancel_runs when the caller supplies it", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation", id: "aut_1", status: "paused", canceled_runs: 3 }
+  });
+  await mailtea.automations.pause("aut_1", { publication_id: PUB, cancel_runs: true });
+  const pause = requireCall(mock.calls, 0);
+  assert.equal(pause.url, "https://api.mailtea.app/v1/automations/aut_1/pause?publication_id=pub_123");
+  assert.deepEqual(JSON.parse(pause.body ?? "null"), { cancel_runs: true });
+
+  const { mailtea: m2, mock: mk2 } = client({
+    json: { object: "automation", id: "aut_1", status: "archived", canceled_runs: 0 }
+  });
+  // archive defaults cancel_runs TRUE, so `false` must actually be transmitted.
+  await m2.automations.archive("aut_1", { publication_id: PUB, cancel_runs: false });
+  const archive = requireCall(mk2.calls, 0);
+  assert.equal(archive.method, "POST");
+  assert.equal(
+    archive.url,
+    "https://api.mailtea.app/v1/automations/aut_1/archive?publication_id=pub_123"
+  );
+  assert.deepEqual(JSON.parse(archive.body ?? "null"), { cancel_runs: false });
+});
+
+test("automations.archive sends no body when cancel_runs is omitted", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation", id: "aut_1", status: "archived", canceled_runs: 2 }
+  });
+  await mailtea.automations.archive("aut_1", { publication_id: PUB });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/automations/aut_1/archive?publication_id=pub_123"
+  );
+  assert.equal(call.body, null);
+});
+
+test("automations.listVersions and getVersion target the right paths", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.automations.listVersions("aut_1", { publication_id: PUB, limit: 10 });
+  assert.equal(
+    requireCall(mock.calls, 0).url,
+    "https://api.mailtea.app/v1/automations/aut_1/versions?publication_id=pub_123&limit=10"
+  );
+
+  const { mailtea: m2, mock: mk2 } = client({
+    json: { object: "automation_version", id: "autv_1", version: 3 }
+  });
+  await m2.automations.getVersion("aut_1", 3, { publication_id: PUB });
+  const call = requireCall(mk2.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/automations/aut_1/versions/3?publication_id=pub_123"
+  );
+});
+
+test("automations.metrics forwards version/since/until", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_metrics", automation_id: "aut_1", steps: [] }
+  });
+  await mailtea.automations.metrics("aut_1", {
+    publication_id: PUB,
+    version: 2,
+    since: "2026-01-01T00:00:00.000Z",
+    until: "2026-02-01T00:00:00.000Z"
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/automations/aut_1/metrics?publication_id=pub_123&version=2&since=2026-01-01T00%3A00%3A00.000Z&until=2026-02-01T00%3A00%3A00.000Z"
+  );
+});
+
+test("automations.test POSTs /:id/test with publication_id in the query only", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_run", id: "autr_1", is_test: true }
+  });
+  const run = await mailtea.automations.test("aut_1", {
+    publication_id: PUB,
+    email: "reader@example.com",
+    event_properties: { plan: "pro" }
+  });
+  assert.equal(run.is_test, true);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/aut_1/test?publication_id=pub_123");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    email: "reader@example.com",
+    event_properties: { plan: "pro" }
+  });
+});
+
+test("automations paths escape ids that contain URL-significant characters", async () => {
+  const { mailtea, mock } = client({ json: { object: "automation", id: "aut_a/b" } });
+  await mailtea.automations.get("aut_a/b", { publication_id: PUB });
+  assert.equal(
+    requireCall(mock.calls, 0).url,
+    "https://api.mailtea.app/v1/automations/aut_a%2Fb?publication_id=pub_123"
+  );
+});
+
+// --- automation runs ------------------------------------------------------
+
+test("automationRuns.list joins a status array into one comma-separated param", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.automationRuns.list("aut_1", {
+    publication_id: PUB,
+    contact_id: "con_1",
+    limit: 25,
+    status: ["executing", "waiting_event"],
+    is_test: false
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/automations/aut_1/runs?publication_id=pub_123&contact_id=con_1&limit=25&status=executing%2Cwaiting_event&is_test=false"
+  );
+});
+
+test("automationRuns.list sends a single status unjoined", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.automationRuns.list("aut_1", { publication_id: PUB, status: "failed" });
+  assert.equal(
+    requireCall(mock.calls, 0).url,
+    "https://api.mailtea.app/v1/automations/aut_1/runs?publication_id=pub_123&status=failed"
+  );
+});
+
+test("automationRuns.get and cancel target the right paths", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "automation_run", id: "autr_1", status: "completed" }
+  });
+  await mailtea.automationRuns.get("aut_1", "autr_1", { publication_id: PUB });
+  const get = requireCall(mock.calls, 0);
+  assert.equal(get.method, "GET");
+  assert.equal(
+    get.url,
+    "https://api.mailtea.app/v1/automations/aut_1/runs/autr_1?publication_id=pub_123"
+  );
+
+  const { mailtea: m2, mock: mk2 } = client({
+    json: { object: "automation_run", id: "autr_1", status: "canceled" }
+  });
+  const canceled = await m2.automationRuns.cancel("aut_1", "autr_1", { publication_id: PUB });
+  assert.equal(canceled.status, "canceled");
+  const cancel = requireCall(mk2.calls, 0);
+  assert.equal(cancel.method, "POST");
+  assert.equal(
+    cancel.url,
+    "https://api.mailtea.app/v1/automations/aut_1/runs/autr_1/cancel?publication_id=pub_123"
+  );
+  assert.equal(cancel.body, null);
+});
+
+// --- events ---------------------------------------------------------------
+
+test("events.send POSTs /v1/events with publication_id in the body", async () => {
+  const { mailtea, mock } = client({
+    json: {
+      object: "event",
+      id: "evt_1",
+      name: "order.placed",
+      contact_id: "con_1",
+      enrolled_automations: 1,
+      resumed_runs: 0
+    }
+  });
+  const result = await mailtea.events.send({
+    publication_id: PUB,
+    name: "order.placed",
+    email: "reader@example.com",
+    create_contact: true,
+    properties: { total: 42 },
+    idempotency_key: "ord_1"
+  });
+  assert.equal(result.enrolled_automations, 1);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/events");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    name: "order.placed",
+    email: "reader@example.com",
+    create_contact: true,
+    properties: { total: 42 },
+    idempotency_key: "ord_1"
+  });
+});
+
+test("events.list forwards name/contact_id/limit/after", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.events.list({
+    publication_id: PUB,
+    name: "order.placed",
+    contact_id: "con_1",
+    limit: 50,
+    after: "cur_1"
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/events?publication_id=pub_123&name=order.placed&contact_id=con_1&limit=50&after=cur_1"
+  );
+});
+
+// --- event definitions ----------------------------------------------------
+
+test("eventDefinitions.create POSTs /v1/event-definitions with publication_id in the body", async () => {
+  const schema = { properties: { total: { type: "number" as const, required: true } } };
+  const { mailtea, mock } = client({
+    json: { object: "event_definition", id: "evd_1", name: "order.placed" }
+  });
+  await mailtea.eventDefinitions.create({
+    publication_id: PUB,
+    name: "order.placed",
+    description: "A completed checkout",
+    schema_json: schema
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/event-definitions");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    name: "order.placed",
+    description: "A completed checkout",
+    schema_json: schema
+  });
+});
+
+test("eventDefinitions.list and get build the right URLs", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [], has_more: false } });
+  await mailtea.eventDefinitions.list({ publication_id: PUB, limit: 20 });
+  assert.equal(
+    requireCall(mock.calls, 0).url,
+    "https://api.mailtea.app/v1/event-definitions?publication_id=pub_123&limit=20"
+  );
+
+  const { mailtea: m2, mock: mk2 } = client({
+    json: { object: "event_definition", id: "evd_1", inferred_properties: [] }
+  });
+  await m2.eventDefinitions.get("evd_1", { publication_id: PUB });
+  assert.equal(
+    requireCall(mk2.calls, 0).url,
+    "https://api.mailtea.app/v1/event-definitions/evd_1?publication_id=pub_123"
+  );
+});
+
+test("eventDefinitions.update PATCHes with publication_id in the query, never in the body", async () => {
+  const { mailtea, mock } = client({ json: { object: "event_definition", id: "evd_1" } });
+  await mailtea.eventDefinitions.update("evd_1", {
+    publication_id: PUB,
+    description: "Renamed description",
+    schema_json: null
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "PATCH");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/event-definitions/evd_1?publication_id=pub_123"
+  );
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    description: "Renamed description",
+    schema_json: null
+  });
+});
+
+test("eventDefinitions.delete DELETEs with publication_id in the query", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "event_definition", id: "evd_1", deleted: true }
+  });
+  const res = await mailtea.eventDefinitions.delete("evd_1", { publication_id: PUB });
+  assert.equal(res.deleted, true);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "DELETE");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/event-definitions/evd_1?publication_id=pub_123"
+  );
 });
 
 // --- idempotency header ---------------------------------------------------

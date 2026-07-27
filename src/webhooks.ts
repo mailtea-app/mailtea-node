@@ -17,7 +17,18 @@ export type WebhookEvent =
   | "contact.created"
   | "contact.updated"
   | "contact.deleted"
-  | "contact.unsubscribed";
+  | "contact.unsubscribed"
+  // Per-topic membership. Fires only on a genuine change in EFFECTIVE tag
+  // membership — re-asserting an `opt_out` tag's default emits nothing.
+  | "contact.tag_subscribed"
+  | "contact.tag_unsubscribed"
+  // Automation lifecycle. Two dots: a run is a sub-resource of an automation.
+  // `automation.step.completed` fires for side-effecting steps only.
+  | "automation.run.started"
+  | "automation.run.completed"
+  | "automation.run.failed"
+  | "automation.run.exited"
+  | "automation.step.completed";
 
 export interface Webhook {
   object: "webhook";

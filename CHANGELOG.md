@@ -2,6 +2,18 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## 0.3.0 (2026-07-27)
+
+### Added
+
+- **Automations resource** — `automations.create / list / get / update / delete`, the lifecycle verbs `automations.activate / pause / archive`, version history via `automations.listVersions / getVersion`, `automations.metrics` and `automations.test`. An automation is a versioned graph of `steps[]` + `connections[]` with no stored coordinates, so it is fully authorable from code. `connections` is **optional**: omit it and the steps link in array order with branch `next`; it becomes required as soon as the graph contains a `condition` or `wait_for_event` step, which otherwise fails with `connections_required_for_branching`.
+- **Graph validation without saving** — `automations.validate({ publication_id, steps, connections })` dry-runs a graph that does not exist yet, and `validate_only: true` on `create` / `update` returns the same structured `issues[]` a real failure would, writing nothing. Both are typed with overloads, so `validate_only: true` narrows the return type to `AutomationValidation`. Every issue carries a stable `code`, a `severity`, and the offending `step_key` / `path` — warnings never block saving, errors block activation.
+- **Automation runs resource** — `automationRuns.list / get / cancel`. Run detail is self-contained: it returns the graph the run is **pinned** to (which may not be the live one), the ordered step timeline, and the waiting state, so a replay never renders against a graph the run never traversed.
+- **Events resource** — `events.send` (custom event ingest, 202, with `idempotency_key` and opt-in `create_contact`) and `events.list`, plus `eventDefinitions.create / list / get / update / delete`. The definition detail returns `inferred_properties` with per-key type, sample count and **coverage**, computed on read over the last 500 events.
+- **`search` on `emails.list`** — `ListEmailsParams.search` is a case-insensitive substring match over recipient, sender and subject, applied server-side **before** pagination. Previously the only way to find an email by subject was to page through the whole list. Shipped server-side on 2026-07-22, one day after 0.2.0 went out, so this is the first published release that carries it.
+- **Automation lifecycle webhook events** on `WebhookEvent`, so an endpoint can subscribe to them through `webhooks.create` / `webhooks.update`: `automation.run.started`, `automation.run.completed`, `automation.run.failed`, `automation.run.exited` and `automation.step.completed`. `automation.run.exited` is deliberately distinct from `completed` — it carries the `exit_reason` for a contact who left a journey early (unsubscribed, suppressed, archived) rather than reaching its end. `automation.step.completed` fires for side-effecting steps only (sends, tag changes, contact updates), never for conditions or delays.
+- **Per-topic subscription webhook events** on `WebhookEvent`: `contact.tag_subscribed` and `contact.tag_unsubscribed`, the granular sibling of `contact.unsubscribed` — a reader leaving one topic is not leaving the publication. Both carry `tag_id`, `previous_status`, `status`, `source` and `occurred_at`. They fire only on a genuine change in EFFECTIVE tag membership (a tag with an `opt_out` default already counts as subscribed, so re-asserting that default emits nothing), which is what makes them safe to drive a downstream sync from.
+
 ## 0.2.0 (2026-07-21)
 
 ### Added

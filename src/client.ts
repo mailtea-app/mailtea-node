@@ -10,6 +10,9 @@ import { Domains } from "./domains.js";
 import { Webhooks } from "./webhooks.js";
 import { ContactProperties } from "./contact-properties.js";
 import { ApiKeys } from "./api-keys.js";
+import { Automations } from "./automations.js";
+import { AutomationRuns } from "./automation-runs.js";
+import { Events, EventDefinitions } from "./events.js";
 import { MailteaError } from "./errors.js";
 
 export interface MailteaOptions {
@@ -74,6 +77,15 @@ export class Mailtea {
   readonly contactProperties: ContactProperties;
   /** The `apiKeys` resource: create, list, revoke. */
   readonly apiKeys: ApiKeys;
+  /** The `automations` resource: validate, create, list, get, update, delete,
+   *  activate, pause, archive, listVersions, getVersion, metrics, test. */
+  readonly automations: Automations;
+  /** The `automationRuns` resource: list, get, cancel. */
+  readonly automationRuns: AutomationRuns;
+  /** The `events` resource: send, list. */
+  readonly events: Events;
+  /** The `eventDefinitions` resource: create, list, get, update, delete. */
+  readonly eventDefinitions: EventDefinitions;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -121,6 +133,10 @@ export class Mailtea {
     this.webhooks = new Webhooks(request);
     this.contactProperties = new ContactProperties(request);
     this.apiKeys = new ApiKeys(request);
+    this.automations = new Automations(request);
+    this.automationRuns = new AutomationRuns(request);
+    this.events = new Events(request);
+    this.eventDefinitions = new EventDefinitions(request);
   }
 
   /** @internal Issue an authenticated request. `extraHeaders` overlay per-call
