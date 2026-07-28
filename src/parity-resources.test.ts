@@ -266,6 +266,64 @@ test("templates.publish/duplicate/delete target the right paths", async () => {
   assert.equal(delCall.url, "https://api.mailtea.app/v1/templates/etpl_1?publication_id=pub_123");
 });
 
+test("templates.listVersions GETs /v1/templates/:id/versions with limit, and returns retention", async () => {
+  const { mailtea, mock } = client({
+    json: {
+      object: "list",
+      data: [
+        {
+          id: "etv_1",
+          version: 7,
+          origin: "edit",
+          restored_from_version: null,
+          format: "editor",
+          name: "Weekly digest",
+          sealed: true,
+          is_current: true,
+          created_at: "2026-07-28T10:00:00.000Z",
+          updated_at: "2026-07-28T10:09:00.000Z",
+          author: { id: "usr_1", name: "Dave", email: "d@x.com", image: null }
+        }
+      ],
+      retention: { max_versions: 50, coalesce_window_seconds: 600 }
+    }
+  });
+  const history = await mailtea.templates.listVersions("etpl_1", { publication_id: PUB, limit: 10 });
+  assert.equal(history.data[0]?.is_current, true);
+  assert.equal(history.data[0]?.author?.id, "usr_1");
+  assert.equal(history.retention.max_versions, 50);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/templates/etpl_1/versions?publication_id=pub_123&limit=10"
+  );
+});
+
+test("templates.restoreVersion POSTs the version path and reports the unpublish", async () => {
+  const { mailtea, mock } = client({
+    json: {
+      restored: true,
+      restored_from_version: 3,
+      unpublished: true,
+      message: "Restored version 3. This template is now a draft — automations and the API have STOPPED sending it until it is published again.",
+      template: { object: "template", id: "etpl_1", status: "draft" }
+    }
+  });
+  const result = await mailtea.templates.restoreVersion("etpl_1", 3, { publication_id: PUB });
+  assert.equal(result.restored, true);
+  // The consequence a caller most needs: the restore stopped the sends.
+  assert.equal(result.unpublished, true);
+  assert.equal(result.template.status, "draft");
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(
+    call.url,
+    "https://api.mailtea.app/v1/templates/etpl_1/versions/3/restore?publication_id=pub_123"
+  );
+  assert.equal(call.body, null);
+});
+
 // --- automations ----------------------------------------------------------
 
 const TRIGGER_STEP = { key: "start", type: "trigger" as const, config: { trigger_type: "contact.created" } };

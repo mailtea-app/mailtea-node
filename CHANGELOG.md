@@ -2,6 +2,14 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+### Added
+
+- **Template version history — `templates.listVersions(id, params)`.** A template's history, newest first: `version`, `origin` (`edit` | `publish` | `restore`), `author`, `sealed`, and `is_current` for the entry whose design the template is actually sending — which is not necessarily the newest, because a metadata-only update bumps the template without writing a version. Metadata only; a single version can carry half a megabyte of design document. Deliberately **not** the standard list envelope: history is capped rather than paginated, so there is no cursor and the response carries `retention` instead — only the newest **50** versions are kept, and consecutive edits by the same author within **10 minutes** collapse into one version.
+- **`templates.restoreVersion(id, version, { publication_id })`.** **A restore is a content write, so it returns the template to `draft` — automations and the API STOP sending it until it is published again.** The response reports that in `unpublished`, so a caller that reads nothing else still learns its own call stopped the sends. History is forward-only: a restore does not rewind, it records the state it replaced as its own version and then adds the restored design as a new version, so a restore can itself be undone by restoring the entry above the one you restored. Restoring the design that is already current writes nothing and answers `restored: false` with `reason: "identical"` — a live template keeps sending.
+- Types for both: `TemplateVersion`, `TemplateVersionOrigin`, `TemplateVersionAuthor`, `TemplateVersionRetention`, `TemplateVersionList`, `ListTemplateVersionsParams` and `RestoredTemplateVersion`.
+
 ## 0.5.0 (2026-07-28)
 
 ### Added

@@ -59,6 +59,7 @@ const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:8787" });
 | `domains.tracking.create / list / verify / delete` | Manage CNAME tracking sub-domains under a domain |
 | `suppressions.list / add / remove / export` | Org-wide suppression list (`export` returns CSV text) |
 | `templates.render / create / list / get / update / publish / duplicate / delete` | Manage stored email templates (`render` previews a spec without saving) |
+| `templates.listVersions / restoreVersion` | Template version history (newest 50). **A restore returns the template to `draft`** — sends stop until it is published again |
 | `webhooks.create / list / get / update / delete` | Manage outbound event subscriptions |
 | `contactProperties.create / list / update / delete` | Manage custom contact fields (team-scoped) |
 | `apiKeys.create / list / revoke` | Manage API keys (`settings:write`) |

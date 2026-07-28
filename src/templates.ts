@@ -143,6 +143,87 @@ export interface ListTemplatesParams {
   after?: string;
 }
 
+/** What an entry in a template's history IS, in one word. `edit` is a content
+ *  save, `publish` the state captured at a publish, `restore` a design put back
+ *  from an earlier entry. */
+export type TemplateVersionOrigin = "edit" | "publish" | "restore";
+
+/** Who wrote a version. `null` when the author can no longer be resolved. */
+export interface TemplateVersionAuthor {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
+
+/** One entry in a template's history. Metadata only — the design itself is
+ *  never returned, because a single version can carry half a megabyte of
+ *  document and the list is a column of timestamps. */
+export interface TemplateVersion {
+  id: string;
+  version: number;
+  origin: TemplateVersionOrigin;
+  /** The version this entry was restored FROM. Null unless `origin` is
+   *  `"restore"`. */
+  restored_from_version: number | null;
+  format: TemplateFormat;
+  name: string;
+  /** Closed to further coalescing — no later edit can fold into it. */
+  sealed: boolean;
+  /** The entry whose design is the template's live content. NOT necessarily the
+   *  newest: a metadata-only update bumps the template without writing a
+   *  version, so `is_current` is the comparison, not the position. */
+  is_current: boolean;
+  created_at: string;
+  updated_at: string;
+  author: TemplateVersionAuthor | null;
+}
+
+/** The two retention rules, reported so a caller can explain a version that is
+ *  missing rather than guess. */
+export interface TemplateVersionRetention {
+  /** Newest-N kept per template; older entries are pruned. */
+  max_versions: number;
+  /** Consecutive edits by the same author inside this window collapse into a
+   *  single version. */
+  coalesce_window_seconds: number;
+}
+
+/** The `templates.listVersions` response. Deliberately not the standard list
+ *  envelope: history is capped rather than paginated, so there is no cursor —
+ *  `retention` says what the cap is. */
+export interface TemplateVersionList {
+  object: "list";
+  data: TemplateVersion[];
+  retention: TemplateVersionRetention;
+}
+
+export interface ListTemplateVersionsParams {
+  publication_id: string;
+  /** Newest N entries. The server caps this at the full retained history (50). */
+  limit?: number;
+}
+
+/** The answer to a restore. */
+export interface RestoredTemplateVersion {
+  /** False when the requested version is already the current design — nothing
+   *  was written, and the template's `status` is untouched. */
+  restored: boolean;
+  /** Why nothing was written. Only present when `restored` is false. */
+  reason?: "identical";
+  /** Which version supplied the design. Absent on a no-op. */
+  restored_from_version?: number;
+  /** Whether this call took the template out of circulation. See
+   *  {@link Templates.restoreVersion} — a restore is a content write, so it
+   *  returns a published template to `draft` and sends STOP until it is
+   *  published again. */
+  unpublished: boolean;
+  /** Human-readable summary of what happened, safe to surface verbatim. */
+  message: string;
+  /** The template as it stands after the call. */
+  template: Template;
+}
+
 /**
  * The `templates` resource (stored email templates). Access via
  * `mailtea.templates`.
@@ -220,6 +301,46 @@ export class Templates {
     return this.request<DeletedResponse>(
       "DELETE",
       `/v1/templates/${encodeURIComponent(id)}${query({ ...params })}`
+    );
+  }
+
+  /** List a template's version history, newest first (metadata only — no
+   *  designs). Only the newest 50 versions are kept, and consecutive edits by
+   *  the same author within 10 minutes collapse into one entry; `retention` on
+   *  the response carries both numbers. */
+  listVersions(
+    id: string,
+    params: ListTemplateVersionsParams
+  ): Promise<TemplateVersionList> {
+    return this.request<TemplateVersionList>(
+      "GET",
+      `/v1/templates/${encodeURIComponent(id)}/versions${query({ ...params })}`
+    );
+  }
+
+  /** Put an earlier design back.
+   *
+   *  **A restore returns the template to `draft`.** It is a content write, so
+   *  automations and the API STOP sending this template until it is published
+   *  again; `unpublished` on the response reports whether that actually
+   *  happened, so a caller that reads nothing else still learns its own call
+   *  stopped the sends.
+   *
+   *  History is forward-only — a restore does not rewind. It records the state
+   *  it replaced as its own version and then adds the restored design as a new
+   *  version, so a restore can itself be undone by restoring the entry above
+   *  the one you restored.
+   *
+   *  Restoring the design that is already current writes nothing and comes back
+   *  `restored: false`, `reason: "identical"` — the template keeps sending. */
+  restoreVersion(
+    id: string,
+    version: number,
+    params: { publication_id: string }
+  ): Promise<RestoredTemplateVersion> {
+    return this.request<RestoredTemplateVersion>(
+      "POST",
+      `/v1/templates/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/restore${query({ ...params })}`
     );
   }
 }
