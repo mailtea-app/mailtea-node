@@ -48,6 +48,15 @@ export interface AutomationStepRun {
   step_type: AutomationStepType;
   label: string | null;
   status: AutomationStepRunStatus;
+  /** Allowlisted projection of what the step recorded, chosen per step type.
+   *
+   *  One key can appear on ANY step type: `recorded_after_run_ended: true`, set
+   *  when the run ended (cancel, archive, mid-run unsubscribe) while this step
+   *  was still in flight. The side effect still happened — the email went out
+   *  and was billed — so the attempt is recorded and counted in metrics, but
+   *  the run did not resume and no `automation.step.completed` webhook fired.
+   *  It is the only thing that explains a `completed_at` later than the run's
+   *  own. */
   output: Record<string, unknown>;
   /** `true` when the endpoint dropped part of `output` (e.g. an oversized
    *  `http_request` response body) rather than the engine never writing it. */
@@ -55,6 +64,7 @@ export interface AutomationStepRun {
   error: string | null;
   attempts: number;
   started_at: string;
+  /** Can be LATER than the run's own `completed_at` — see `output`. */
   completed_at: string;
 }
 

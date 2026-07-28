@@ -169,13 +169,23 @@ export interface AutomationVersion extends AutomationVersionListItem {
 
 export interface AutomationStepEmailMetrics {
   sent: number;
+  /** CURRENTLY delivered — accepted and not subsequently bounced. A mailbox that
+   *  accepts a message and later rejects it leaves both timestamps set, so that
+   *  message counts under `bounced` only and `delivered + bounced` can never
+   *  exceed `sent`. */
   delivered: number;
+  /** Pixel-based; undercounts. */
   opened: number;
+  /** Link-based; undercounts. */
   clicked: number;
   bounced: number;
 }
 
 export interface AutomationStepMetrics {
+  /** Unique only WITHIN a version. An all-versions aggregate can therefore
+   *  contain two entries with the same `step_key` and different `step_type` —
+   *  a key deleted as one kind of step and re-added as another. Index this
+   *  array on the PAIR, or the second entry overwrites the first. */
   step_key: string;
   step_type: AutomationStepType | null;
   label: string | null;
@@ -204,9 +214,19 @@ export interface AutomationMetrics {
   object: "automation_metrics";
   automation_id: string;
   publication_id: string;
-  /** The version the numbers cover, or the live one when no `version` was asked for. */
+  /** The version these numbers are SCOPED to. `null` when no `version` was
+   *  requested, because the aggregate then spans every version and there is no
+   *  one version the counts belong to. Caption a chart or an export from this
+   *  field — never from {@link AutomationMetrics.graph_version}, which would
+   *  title combined traffic with a single version number. */
   version: number | null;
   version_id: string | null;
+  /** The version whose graph supplied `steps[]` and their labels: the live one,
+   *  or the requested one when `version` was passed. `null` only for an
+   *  automation with no live version. This says where the LABELS came from, not
+   *  what the counts cover. */
+  graph_version: number | null;
+  graph_version_id: string | null;
   since: string | null;
   until: string | null;
   /** Always `true` — test runs send real email but never count here. */
@@ -298,7 +318,8 @@ export interface ListAutomationVersionsParams {
 
 export interface AutomationMetricsParams {
   publication_id: string;
-  /** Omitted aggregates across ALL versions. */
+  /** Omitted aggregates across ALL versions — and the response then reports
+   *  `version: null`, because no single version scopes those counts. */
   version?: number;
   since?: string;
   until?: string;

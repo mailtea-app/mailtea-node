@@ -2,6 +2,19 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## 0.5.0 (2026-07-28)
+
+### Added
+
+- **`graph_version` / `graph_version_id` on `AutomationMetrics`.** The response now names two versions rather than conflating them: `version` is what the numbers are **scoped** to, `graph_version` is only which graph supplied `steps[].label`. They are equal whenever a `version` was requested, and only the second is set for an all-versions aggregate. Without the split there was no way to say "labels from v4" without a client reading it as "these counts are v4's".
+
+### Changed
+
+- **`AutomationMetrics.version` is now `null` for an all-versions aggregate.** It previously carried the live version number when no `version` was requested — a specific version stamped on counts that span every version, which let a caller title a funnel "Version 4" over combined v1-through-v4 traffic. The type was already `number | null`, so no signature changes; callers that print the version must now render an "all versions" label when it is `null` rather than assuming a number.
+- **`AutomationStepEmailMetrics.delivered` now means CURRENTLY delivered** — accepted and not subsequently bounced. A mailbox that accepts a message and later rejects it leaves both timestamps set, and counting it in both buckets could make `delivered + bounced` exceed `sent`. That message now counts under `bounced` only, so the funnel can no longer report more outcomes than sends.
+- **`AutomationMetrics.steps[]` is keyed on (`step_key`, `step_type`), not `step_key` alone.** A step key is unique only within a version, so an all-versions aggregate can now contain two entries sharing a `step_key` — a key deleted as a `condition` and later re-added as a `send_email` is two different steps. Previously the second silently overwrote the first, putting a send funnel on a fork. **Code that indexes `steps[]` by `step_key` must index on the pair**, or it will drop one of the two.
+- `AutomationStepRun.output` documents `recorded_after_run_ended`, a key that can now appear on **any** step type. It marks a side effect that completed after its run ended (an operator cancel, an archive or a mid-run unsubscribe landing between dispatch and result). Those attempts were previously discarded, so a run's timeline showed no send for an email that had been sent and billed; they are now recorded and counted in metrics. Such a step run's `completed_at` is legitimately later than the run's own, and no `automation.step.completed` webhook fires for it.
+
 ## 0.4.0 (2026-07-27)
 
 ### Added
