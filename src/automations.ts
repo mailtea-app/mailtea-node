@@ -23,6 +23,8 @@ export type AutomationStepType =
   | "send_email"
   | "tag_add"
   | "tag_remove"
+  | "segment_add"
+  | "segment_remove"
   | "contact_update"
   | "http_request"
   | "exit";

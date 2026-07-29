@@ -4,6 +4,12 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+### Added
+
+- **`AutomationStepType` gains `segment_add` and `segment_remove`.** Two new side-effecting steps that move the enrolled contact in and out of an audience segment; both take `config: { segment_id }`. They matter now because segment membership decides who a send targeting that segment reaches — before that it was a stored list with no reader on the delivery path.
+- A segment is a **member list** (no filter) or a **filter** (`status_filter` / `query_filter`), never both, so **`segment_add` accepts member-list segments only**. Targeting a filter-backed segment is a new `segment_is_filter` validation error that blocks activation, and the step refuses again at run time — a segment can be given a filter after the automation goes live, and writing then would create the ambiguous both-kinds segment that refuses to send at all. `segment_remove` accepts either kind: it can only delete membership, so it cannot create that state, and on an already-mixed segment it is one of the ways out. A `segment_id` that does not resolve in the publication is `segment_not_found`.
+- `AutomationStepRun.output` for these steps carries `segment_id` and `status` (`"added"` / `"removed"`), and both emit `automation.step.completed`.
+
 ### Changed
 
 - **`TemplateVariable.key` now has a shape, and the API enforces it.** `POST /v1/templates` and `PATCH /v1/templates/:id` refuse a key outside `^[A-Za-z_$@][A-Za-z0-9_$@.-]*$` (1–50 chars) with a `400`; one invalid key fails the whole write. No SDK code change — `key` is still `string` on the wire and the new refusal surfaces as an ordinary API error — but the type now documents the rule, because a name outside it was previously accepted, stored, returned by `templates.get()` looking declared, and then substituted **nowhere**: a send resolves a variable by path, so `Hi {2nd name},` reached the inbox with its braces. Dots address into send context (`contact.first_name`) and dashes are legal (`plan-tier`); pipes, spaces, braces and a leading digit are not.
