@@ -4,6 +4,10 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+### Changed
+
+- **`TemplateVariable.key` now has a shape, and the API enforces it.** `POST /v1/templates` and `PATCH /v1/templates/:id` refuse a key outside `^[A-Za-z_$@][A-Za-z0-9_$@.-]*$` (1–50 chars) with a `400`; one invalid key fails the whole write. No SDK code change — `key` is still `string` on the wire and the new refusal surfaces as an ordinary API error — but the type now documents the rule, because a name outside it was previously accepted, stored, returned by `templates.get()` looking declared, and then substituted **nowhere**: a send resolves a variable by path, so `Hi {2nd name},` reached the inbox with its braces. Dots address into send context (`contact.first_name`) and dashes are legal (`plan-tier`); pipes, spaces, braces and a leading digit are not.
+
 ### Added
 
 - **Template version history — `templates.listVersions(id, params)`.** A template's history, newest first: `version`, `origin` (`edit` | `publish` | `restore`), `author`, `sealed`, and `is_current` for the entry whose design the template is actually sending — which is not necessarily the newest, because a metadata-only update bumps the template without writing a version. Metadata only; a single version can carry half a megabyte of design document. Deliberately **not** the standard list envelope: history is capped rather than paginated, so there is no cursor and the response carries `retention` instead — only the newest **50** versions are kept, and consecutive edits by the same author within **10 minutes** collapse into one version.

@@ -6,6 +6,19 @@ export type TemplateFormat = "html" | "spec" | "editor";
 export type TemplateVariableType = "string" | "number";
 
 export interface TemplateVariable {
+  /**
+   * The variable's name. 1–50 characters matching
+   * `^[A-Za-z_$@][A-Za-z0-9_$@.-]*$`; anything else is a `400`, and one bad key
+   * fails the whole write.
+   *
+   * Narrower than "any short string" because a send resolves a variable by
+   * PATH. A name the path parser cannot read is stored intact and read back
+   * intact — and substitutes nowhere, so `Hi {2nd name},` reaches the inbox
+   * with its braces. Dots address into the send context
+   * (`contact.first_name`); dashes are fine (`plan-tier` — only dots separate
+   * segments); `|` is not, because it is the inline-fallback separator in
+   * `{key|fallback}`.
+   */
   key: string;
   type: TemplateVariableType;
   fallback_value?: string | number;
