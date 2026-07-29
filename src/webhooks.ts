@@ -20,8 +20,8 @@ export type WebhookEvent =
   | "contact.unsubscribed"
   // Per-topic membership. Fires only on a genuine change in EFFECTIVE tag
   // membership — re-asserting an `opt_out` tag's default emits nothing.
-  | "contact.tag_subscribed"
-  | "contact.tag_unsubscribed"
+  | "contact.topic_subscribed"
+  | "contact.topic_unsubscribed"
   // Automation lifecycle. Two dots: a run is a sub-resource of an automation.
   // `automation.step.completed` fires for side-effecting steps only.
   | "automation.run.started"

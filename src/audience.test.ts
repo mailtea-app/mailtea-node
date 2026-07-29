@@ -96,13 +96,13 @@ test("segments.create and update hit /v1/segments", async () => {
   assert.deepEqual(JSON.parse(upd.body ?? "null"), { publication_id: PUB, name: "Renamed" });
 });
 
-// --- tags -----------------------------------------------------------------
+// --- topics -----------------------------------------------------------------
 
-test("tags.create POSTs with required default_subscription", async () => {
-  const { mailtea, mock } = client({ json: { object: "tag", id: "tg_1" } });
-  await mailtea.tags.create({ publication_id: PUB, name: "VIP", default_subscription: "opt_in" });
+test("topics.create POSTs with required default_subscription", async () => {
+  const { mailtea, mock } = client({ json: { object: "topic", id: "tg_1" } });
+  await mailtea.topics.create({ publication_id: PUB, name: "VIP", default_subscription: "opt_in" });
   const call = requireCall(mock.calls, 0);
-  assert.equal(call.url, "https://api.mailtea.app/v1/tags");
+  assert.equal(call.url, "https://api.mailtea.app/v1/topics");
   assert.deepEqual(JSON.parse(call.body ?? "null"), {
     publication_id: PUB,
     name: "VIP",
@@ -110,9 +110,9 @@ test("tags.create POSTs with required default_subscription", async () => {
   });
 });
 
-test("tags.list returns the list envelope", async () => {
-  const { mailtea } = client({ json: { object: "list", data: [{ object: "tag", id: "tg_1" }], has_more: false } });
-  const res = await mailtea.tags.list({ publication_id: PUB });
+test("topics.list returns the list envelope", async () => {
+  const { mailtea } = client({ json: { object: "list", data: [{ object: "topic", id: "tg_1" }], has_more: false } });
+  const res = await mailtea.topics.list({ publication_id: PUB });
   assert.equal(res.data.length, 1);
   assert.equal(res.data[0]?.id, "tg_1");
 });

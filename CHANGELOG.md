@@ -4,6 +4,14 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+### Changed
+
+- **BREAKING — the audience concept is now a `topic`, not a `tag`.** `mailtea.tags` is now `mailtea.topics` and hits `/v1/topics`; `Tag`, `CreateTagInput`, `UpdateTagInput`, `ListTagsParams` and `TagSubscription` are now `Topic`, `CreateTopicInput`, `UpdateTopicInput`, `ListTopicsParams` and `TopicSubscription`. `object` on the returned resource is `"topic"`. There is no `/v1/tags` alias — the old path is gone.
+  **Topic ids keep their `tag_` prefix.** It is opaque and permanent: ids are foreign-keyed, embedded in stored automation graphs, and carried in the `?tag=` List-Unsubscribe links of already-delivered mail. Never parse it.
+  "Tag" now means only the Resend-compatible `tags: [{name, value}]` metadata on `emails.send()` and the `tag_name` / `tag_value` filters on `emails.list()`. Those are **unchanged**.
+- **Webhook events renamed.** `contact.tag_subscribed` / `contact.tag_unsubscribed` are now `contact.topic_subscribed` / `contact.topic_unsubscribed`, and the payload field `tag_id` is now `topic_id`. A handler written as `if (event.type === "contact.tag_subscribed")` stops matching — update it before upgrading.
+- **Automation graph vocabulary renamed.** Step types `tag_add` / `tag_remove` → `topic_add` / `topic_remove`; trigger types `tag.subscribed` / `tag.unsubscribed` → `topic.subscribed` / `topic.unsubscribed`; the step config key `tag_id` → `topic_id`; the condition field `contact.tags` → `contact.topics`; validation codes `tag_not_found` / `tag_unverified` → `topic_not_found` / `topic_unverified`. The API **accepts both spellings on write forever** and canonicalizes on read, so an existing automation keeps running — but `automations.get()` returns the new spelling even for a graph stored with the old one.
+
 ### Added
 
 - **`AutomationStepType` gains `segment_add` and `segment_remove`.** Two new side-effecting steps that move the enrolled contact in and out of an audience segment; both take `config: { segment_id }`. They matter now because segment membership decides who a send targeting that segment reaches — before that it was a stored list with no reader on the delivery path.

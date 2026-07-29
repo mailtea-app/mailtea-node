@@ -1,7 +1,7 @@
 import { Emails } from "./emails.js";
 import { Contacts } from "./contacts.js";
 import { Segments } from "./segments.js";
-import { Tags } from "./tags.js";
+import { Topics } from "./topics.js";
 import { Posts } from "./posts.js";
 import { Senders } from "./senders.js";
 import { Suppressions } from "./suppressions.js";
@@ -59,8 +59,8 @@ export class Mailtea {
   readonly contacts: Contacts;
   /** The `segments` resource: create, list, get, update, delete. */
   readonly segments: Segments;
-  /** The `tags` resource: create, list, get, update, delete. */
-  readonly tags: Tags;
+  /** The `topics` resource: create, list, get, update, delete. */
+  readonly topics: Topics;
   /** The `posts` resource: create, list, get, update, send, sendTest, delete. */
   readonly posts: Posts;
   /** The `senders` resource: create, list, get, update, delete. */
@@ -124,7 +124,7 @@ export class Mailtea {
     this.emails = new Emails(request);
     this.contacts = new Contacts(request);
     this.segments = new Segments(request);
-    this.tags = new Tags(request);
+    this.topics = new Topics(request);
     this.posts = new Posts(request);
     this.senders = new Senders(request);
     this.suppressions = new Suppressions(request, requestText);
