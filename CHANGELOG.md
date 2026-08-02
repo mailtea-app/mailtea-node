@@ -2,6 +2,47 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## 0.7.0 (2026-08-02)
+### Added
+
+- **Send React Email components — `react` on `emails.send()` and on each `emails.batch()` item.** Pass a JSX element instead of an `html` string and the SDK renders it to HTML **in your process**, before the request leaves:
+
+  ```tsx
+  import { Mailtea } from "mailtea-sdk";
+  await mailtea.emails.send({
+    from: "Acme <hello@acme.com>",
+    to: "customer@example.com",
+    subject: "Welcome",
+    react: <Welcome name="Dave" />
+  });
+  ```
+
+  The API only ever receives `html` — there is no new server behaviour and nothing to upgrade on the account. Anything React Email renders works, including `<Tailwind>`: its utility classes are inlined at render time, and the media queries it cannot inline survive in the `<style>` block.
+
+  **`@react-email/render` and `react` are OPTIONAL peer dependencies.** They are loaded with a lazy `import()` the first time a `react` payload is sent, so a project that never uses the field installs `mailtea-sdk` with **no dependencies at all** — unchanged from 0.6.0. If the field is used without them installed, the SDK throws with the install command rather than failing at the network layer.
+
+  `react` is mutually exclusive with `html` and `template`; combining them throws a `TypeError` before any request is made. Batch items support `react` (they still do not support `attachments` or `scheduled_at`).
+
+- `ReactEmailElement`, the structural element type the `react` field accepts. Deliberately structural rather than `React.ReactElement` so the published types pull in no React dependency; a JSX element satisfies it.
+
+- **`MailteaError.code` is now populated from the API's error body.** It has always existed for client-side failures (`missing_api_key`, `missing_fetch`); it was never filled in for HTTP errors, so branching on a specific API error meant string-matching `error.message` — which breaks the day the copy changes. Now, when the API sends a `code` alongside `error`, the SDK carries it through:
+
+  ```ts
+  try {
+    await mailtea.contacts.list({ publication_id: "pub_123" });
+  } catch (err) {
+    if (err instanceof MailteaError && err.code === "marketing_plan_required") {
+      // the team is on a transactional-only plan
+    }
+  }
+  ```
+
+  Purely additive: `code` stays `undefined` for the errors that carry no code, and `message`, `status`, `details` and `requestId` are unchanged.
+
+### Changed
+
+- **Marketing endpoints answer `402` on a transactional-only plan.** Server-side change, no SDK code change — recorded here because it is a new failure mode for existing calls. `contacts`, `contactProperties`, `segments`, `topics`, `posts` and `automations` now reject with HTTP `402` and `code: "marketing_plan_required"` when the API key belongs to a team on one of the transactional-column SKUs (`hobby`, `pro_25k`, `pro_50k`, `pro_100k`, `scale_250k`, `scale_500k`, `scale_1m`). `emails`, `domains`, `senders`, `suppressions`, `templates`, `events`, `webhooks` and `apiKeys` are unaffected on every plan. Nothing is deleted while a plan is transactional-only — upgrading to the matching `_full` SKU restores access to data already stored.
+
 ## 0.6.0 (2026-07-29)
 ### Changed
 

@@ -109,3 +109,41 @@ test("defaults to the production base URL", async () => {
     "https://api.mailtea.app/v1/emails"
   );
 });
+
+test("surfaces the API's machine-readable error code on MailteaError", async () => {
+  const mock = createMockFetch({
+    status: 402,
+    json: {
+      error: "Your plan covers transactional email only.",
+      code: "marketing_plan_required"
+    }
+  });
+  const mailtea = new Mailtea("mt_pat_abc", { fetch: mock.fetch });
+
+  await assert.rejects(
+    () => mailtea.contacts.list({ publication_id: "pub_1" }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.status, 402);
+      // Branching on the code has to survive a copy change to the message.
+      assert.equal(err.code, "marketing_plan_required");
+      assert.equal(err.message, "Your plan covers transactional email only.");
+      return true;
+    }
+  );
+});
+
+test("leaves code undefined when the API sends no code", async () => {
+  const mock = createMockFetch({ status: 404, json: { error: "Contact not found" } });
+  const mailtea = new Mailtea("mt_pat_abc", { fetch: mock.fetch });
+
+  await assert.rejects(
+    () => mailtea.contacts.list({ publication_id: "pub_1" }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.code, undefined);
+      assert.equal(err.message, "Contact not found");
+      return true;
+    }
+  );
+});

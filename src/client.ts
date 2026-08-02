@@ -169,18 +169,25 @@ export class Mailtea {
     const requestId = response.headers.get("x-request-id") ?? undefined;
     let message = `${response.status} ${response.statusText}`.trim();
     let details: unknown;
+    // Machine-readable code from the API, when it sends one (e.g.
+    // `marketing_plan_required` on 402). Branching on `code` survives copy
+    // changes in a way that string-matching `message` does not.
+    let code: string | undefined;
     try {
       const errorBody = (await response.json()) as {
         error?: string;
+        code?: string;
         details?: unknown;
       } | null;
       if (errorBody?.error) message = errorBody.error;
+      if (typeof errorBody?.code === "string") code = errorBody.code;
       details = errorBody?.details;
     } catch {
       // Non-JSON error body — keep the status-line message.
     }
     throw new MailteaError(message, {
       status: response.status,
+      code,
       details,
       requestId
     });
