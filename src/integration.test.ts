@@ -7,7 +7,7 @@ import { Mailtea } from "./index.js";
 //
 //   MAILTEA_SDK_INTEGRATION=1 \
 //   MAILTEA_API_KEY=mt_pat_xxx \
-//   MAILTEA_SDK_BASE_URL=http://localhost:8787 \
+//   MAILTEA_SDK_BASE_URL=http://localhost:7787 \
 //   MAILTEA_SDK_FROM="you@yourdomain.com" \
 //   MAILTEA_SDK_TO="delivered@example.com" \
 //   pnpm --filter mailtea test
@@ -19,7 +19,7 @@ test(
   { skip: enabled ? false : "set MAILTEA_SDK_INTEGRATION=1 to run" },
   async () => {
     const apiKey = process.env.MAILTEA_API_KEY;
-    const baseUrl = process.env.MAILTEA_SDK_BASE_URL ?? "http://localhost:8787";
+    const baseUrl = process.env.MAILTEA_SDK_BASE_URL ?? "http://localhost:7787";
     const from = process.env.MAILTEA_SDK_FROM ?? "you@example.com";
     const to = process.env.MAILTEA_SDK_TO ?? "delivered@example.com";
     assert.ok(apiKey, "MAILTEA_API_KEY is required for the integration test");

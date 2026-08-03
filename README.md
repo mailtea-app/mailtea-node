@@ -32,7 +32,7 @@ The API key can be passed as a string, inside an options object
 the environment. Override the base URL for self-hosted or local instances:
 
 ```ts
-const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:8787" });
+const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:7787" });
 ```
 
 ## API
