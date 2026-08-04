@@ -35,6 +35,39 @@ function sendHeaders(options?: SendOptions): Record<string, string> | undefined 
 }
 
 /**
+ * Turn a `react` payload into an ordinary `html` one.
+ *
+ * React Email renders in the CALLER's process — the API only ever receives
+ * HTML — so `@react-email/render` is an optional peer dependency loaded
+ * lazily. A project that never passes `react` never resolves the import, which
+ * is what keeps `mailtea-sdk` installable with no dependencies at all.
+ */
+async function renderReactPayload<T extends { react?: unknown; html?: string; template?: unknown }>(
+  payload: T
+): Promise<T> {
+  if (!payload.react) return payload;
+  if (payload.html !== undefined || payload.template !== undefined) {
+    throw new TypeError(
+      "Cannot provide 'react' together with 'html' or 'template'. Use one or the other."
+    );
+  }
+
+  let render: (element: never) => string | Promise<string>;
+  try {
+    ({ render } = (await import("@react-email/render")) as {
+      render: (element: never) => string | Promise<string>;
+    });
+  } catch {
+    throw new Error(
+      "Sending with `react` needs the optional peer dependencies. Install them with: npm install @react-email/render react"
+    );
+  }
+
+  const { react, ...rest } = payload;
+  return { ...rest, html: await render(react as never) } as T;
+}
+
+/**
  * The `emails` resource. Access via `mailtea.emails`.
  */
 export class Emails {
@@ -48,9 +81,11 @@ export class Emails {
   /**
    * Send a transactional email.
    *
-   * Provide either inline content (`html` and/or `text`) **or** a `template`
-   * reference — not both. `to`, `cc`, `bcc`, and `reply_to` each accept a single
-   * address or an array.
+   * Provide inline content (`html` and/or `text`), a `react` component, **or** a
+   * `template` reference — not more than one. `to`, `cc`, `bcc`, and `reply_to`
+   * each accept a single address or an array.
+   *
+   * A `react` payload is rendered to HTML locally before the request is sent.
    *
    * @returns the new email's `id`.
    */
@@ -61,14 +96,15 @@ export class Emails {
     return this.request<SendEmailResponse>(
       "POST",
       "/v1/emails",
-      payload,
+      await renderReactPayload(payload),
       sendHeaders(options)
     );
   }
 
   /**
    * Send up to 100 emails in a single request. Batch items do not support
-   * `attachments` or `scheduled_at`.
+   * `attachments` or `scheduled_at`. Items may each carry a `react` component,
+   * rendered locally before the request is sent.
    *
    * @returns `{ data: [{ id }, ...] }` in request order.
    */
@@ -79,7 +115,7 @@ export class Emails {
     return this.request<BatchEmailResponse>(
       "POST",
       "/v1/emails/batch",
-      payload,
+      await Promise.all(payload.map(renderReactPayload)),
       sendHeaders(options)
     );
   }

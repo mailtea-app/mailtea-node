@@ -11,6 +11,16 @@ export interface TemplateRef {
 
 /** Input for `emails.send`. Provide inline content (`html`/`text`) OR a `template`.
  *  Provide exactly one of `from` or `sender_id`. */
+/**
+ * A React element, described structurally so the SDK keeps its zero-dependency
+ * install — a JSX element satisfies this without the SDK importing React types.
+ * Used only as the `react` field's shape; the SDK never inspects it.
+ */
+export interface ReactEmailElement {
+  type: unknown;
+  props: unknown;
+}
+
 export interface SendEmailInput {
   /** From header, e.g. `Acme <hello@acme.com>`. Mutually exclusive with `sender_id`. */
   from?: string;
@@ -19,6 +29,15 @@ export interface SendEmailInput {
   to: string | string[];
   subject: string;
   html?: string;
+  /**
+   * A React Email component. Rendered to HTML **in your process** before the
+   * request is sent, so the API only ever receives `html`.
+   *
+   * Requires `@react-email/render` and `react` to be installed — they are
+   * optional peer dependencies, so installs that never pass `react` stay
+   * dependency-free. Mutually exclusive with `html` and `template`.
+   */
+  react?: ReactEmailElement;
   text?: string;
   template?: TemplateRef;
   cc?: string | string[];
