@@ -3,6 +3,7 @@ import { Contacts } from "./contacts.js";
 import { Segments } from "./segments.js";
 import { Topics } from "./topics.js";
 import { Posts } from "./posts.js";
+import { Assets } from "./assets.js";
 import { Senders } from "./senders.js";
 import { Suppressions } from "./suppressions.js";
 import { Templates } from "./templates.js";
@@ -65,6 +66,8 @@ export class Mailtea {
   readonly posts: Posts;
   /** The `senders` resource: create, list, get, update, delete. */
   readonly senders: Senders;
+  /** The `assets` resource: the publication's image library. */
+  readonly assets: Assets;
   /** The `suppressions` resource: add, remove, list, export. */
   readonly suppressions: Suppressions;
   /** The `templates` resource: render, create, list, get, update, publish, duplicate, delete. */
@@ -127,6 +130,7 @@ export class Mailtea {
     this.topics = new Topics(request);
     this.posts = new Posts(request);
     this.senders = new Senders(request);
+    this.assets = new Assets(request);
     this.suppressions = new Suppressions(request, requestText);
     this.templates = new Templates(request);
     this.domains = new Domains(request);

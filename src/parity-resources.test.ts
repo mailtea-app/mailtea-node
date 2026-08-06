@@ -790,3 +790,70 @@ test("emails.batch sets the Idempotency-Key header when given", async () => {
   );
   assert.equal(requireCall(mock.calls, 0).headers.get("idempotency-key"), "batch_key");
 });
+
+// --- assets ---------------------------------------------------------------
+
+test("assets.upload base64-encodes raw bytes so callers never do it by hand", async () => {
+  // The wire format is base64 in JSON — chosen over multipart so every SDK has
+  // one code path. Handing the SDK a Buffer and getting a base64 body is the
+  // whole point; if this regressed, callers would silently upload the string
+  // "[object Uint8Array]".
+  const { mailtea, mock } = client({
+    json: { object: "asset", id: "asset_1", url: "https://cdn.test/asset_1.png" }
+  });
+  const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+  const asset = await mailtea.assets.upload({
+    publication_id: PUB,
+    content: bytes,
+    content_type: "image/png",
+    filename: "hero.png",
+    width: 1200,
+    height: 452
+  });
+  assert.equal(asset.url, "https://cdn.test/asset_1.png");
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/assets");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    publication_id: PUB,
+    content: "iVBORw==",
+    content_type: "image/png",
+    filename: "hero.png",
+    width: 1200,
+    height: 452
+  });
+});
+
+test("assets.upload passes an already-base64 string straight through", async () => {
+  const { mailtea, mock } = client({ json: { object: "asset", id: "asset_2" } });
+  await mailtea.assets.upload({
+    publication_id: PUB,
+    content: "iVBORw==",
+    content_type: "image/png"
+  });
+  const body = JSON.parse(requireCall(mock.calls, 0).body ?? "null");
+  assert.equal(body.content, "iVBORw==");
+});
+
+test("assets.list GETs /v1/assets with the filters as query params", async () => {
+  const { mailtea, mock } = client({ json: { object: "list", data: [] } });
+  await mailtea.assets.list({ publication_id: PUB, search: "hero", limit: 10 });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.match(call.url, /^https:\/\/api\.mailtea\.app\/v1\/assets\?/);
+  const url = new URL(call.url);
+  assert.equal(url.searchParams.get("publication_id"), PUB);
+  assert.equal(url.searchParams.get("search"), "hero");
+  assert.equal(url.searchParams.get("limit"), "10");
+});
+
+test("assets.delete DELETEs by id and keeps publication_id on the query", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "asset", id: "asset_1", deleted: true }
+  });
+  const res = await mailtea.assets.delete("asset_1", { publication_id: PUB });
+  assert.equal(res.deleted, true);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "DELETE");
+  assert.match(call.url, /\/v1\/assets\/asset_1\?/);
+});

@@ -9,6 +9,7 @@ export { Contacts } from "./contacts.js";
 export { Segments } from "./segments.js";
 export { Topics } from "./topics.js";
 export { Posts } from "./posts.js";
+export * from "./assets.js";
 export { Senders } from "./senders.js";
 export { Suppressions } from "./suppressions.js";
 export { Templates } from "./templates.js";

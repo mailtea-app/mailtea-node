@@ -2,6 +2,34 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## 0.8.0 (2026-08-06)
+
+### Added
+
+- **`mailtea.assets` — the publication's image library.** `upload`, `list` and
+  `delete`. An email or site image block takes an absolute URL, so until now an
+  SDK caller could compose a whole newsletter and had no way to put a picture in
+  it; the library was reachable only from the studio, MCP and the CLI.
+
+  ```ts
+  const asset = await mailtea.assets.upload({
+    publication_id: "pub_123",
+    content: await readFile("hero.png"),   // Buffer/Uint8Array, encoded for you
+    content_type: "image/png",
+    filename: "hero.png",
+    width: 1200,
+    height: 452
+  });
+  asset.url; // -> use as an image block's src
+  ```
+
+  `content` also accepts an already-base64 string. PNG, JPEG, GIF or WebP, 5 MB
+  per image, 500 MB per publication. **SVG is refused** — it can carry script and
+  the file is served from a Mailtea domain — and the bytes are checked against
+  the declared `content_type`, so a mislabelled file is rejected rather than
+  stored. `delete` hides an asset from the library but KEEPS the file resolving,
+  so images in already-sent emails do not break.
+
 ## 0.7.0 (2026-08-02)
 ### Added
 
