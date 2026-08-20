@@ -19,7 +19,8 @@ export type AssetContentType =
   | "image/png"
   | "image/jpeg"
   | "image/gif"
-  | "image/webp";
+  | "image/webp"
+  | "image/svg+xml";
 
 export interface UploadAssetInput {
   publication_id: string;

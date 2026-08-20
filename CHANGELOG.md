@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added: `image/svg+xml` is an accepted asset type for `assets.upload` — SVG
+  logos and marks upload like any raster. The public asset route serves every
+  asset with `Content-Security-Policy: sandbox`, which is what makes hosting
+  SVGs safe: scripts inside one never execute, in an `<img>` or navigated to
+  directly.
+
+
 All notable changes to `mailtea-sdk` are documented here.
 
 ## 0.8.0 (2026-08-06)
