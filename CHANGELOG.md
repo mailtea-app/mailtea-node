@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Changed: `emails.analytics` reports `open_rate` and `click_rate` against
+  delivered mail (`sent - bounced`) rather than everything sent. A bounced email
+  was never open-able, so counting it understated engagement — this is how the
+  figures read in Mailtea Studio and how email platforms report them generally.
+  Both rates will read higher than before for the same data. `delivery_rate` and
+  `bounce_rate` are unchanged, still measured against `sent`, and every
+  underlying count is still in the response if you want the previous figure.
+
 - Added: `emails.get` returns `error` and `failed_at`. A failed send now says why
   over the API, not only in Mailtea Studio. The wording is neutral — the delivery
   provider's own message is never relayed — so it is safe to show to your users.

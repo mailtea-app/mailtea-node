@@ -228,9 +228,9 @@ export interface EmailAnalytics {
     delivery_rate: number;
     /** bounced / sent */
     bounce_rate: number;
-    /** opened / sent */
+    /** opened / (sent - bounced) — bounced mail was never open-able. */
     open_rate: number;
-    /** clicked / sent */
+    /** clicked / (sent - bounced) */
     click_rate: number;
   };
 }
