@@ -4,6 +4,11 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `tracking_open` and `tracking_click` on `emails.send` and
+  `emails.batch` — send a message without an open pixel or without rewritten
+  links. A sending domain that has tracking switched off cannot be overridden
+  from a send, so code that does not know about the policy cannot break it.
+
 ## 0.9.0 (2026-08-22)
 
 - Changed: `emails.analytics` reports `open_rate` and `click_rate` against

@@ -43,6 +43,13 @@ export interface SendEmailInput {
   cc?: string | string[];
   bcc?: string | string[];
   reply_to?: string | string[];
+  /**
+   * Send this message without an open-tracking pixel / without rewriting its
+   * links. A sending domain with tracking switched off cannot be overridden
+   * here — policy narrows, it never widens. Omitted means tracked.
+   */
+  tracking_open?: boolean;
+  tracking_click?: boolean;
   /** ISO 8601 datetime to schedule the send. */
   scheduled_at?: string;
   tags?: Array<{ name: string; value: string }>;
