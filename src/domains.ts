@@ -36,6 +36,13 @@ export interface Domain {
   verified_at: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * Whether mail from this domain may carry an open-tracking pixel / rewritten
+   * links. Policy: an individual send may decline tracking, but no send can
+   * re-enable what is switched off here.
+   */
+  open_tracking: boolean;
+  click_tracking: boolean;
 }
 
 /** Response of `domains.verify` — a {@link Domain} plus the operational MX check. */
@@ -59,6 +66,8 @@ export interface UpdateDomainInput {
   purpose?: DomainPurpose;
   is_primary?: boolean;
   proxy_target?: string;
+  open_tracking?: boolean;
+  click_tracking?: boolean;
 }
 
 export interface ListDomainsParams {

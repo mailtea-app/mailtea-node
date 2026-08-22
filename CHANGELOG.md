@@ -4,6 +4,10 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `domains.list` and `domains.get` return `open_tracking` /
+  `click_tracking`, and `domains.update` accepts them — the sending domain's
+  tracking policy is now readable and settable from the SDK.
+
 - Added: `tracking_open` and `tracking_click` on `emails.send` and
   `emails.batch` — send a message without an open pixel or without rewritten
   links. A sending domain that has tracking switched off cannot be overridden
