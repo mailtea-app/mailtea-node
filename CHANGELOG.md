@@ -1,6 +1,10 @@
 # Changelog
 
+All notable changes to `mailtea-sdk` are documented here.
+
 ## Unreleased
+
+## 0.9.0 (2026-08-22)
 
 - Changed: `emails.analytics` reports `open_rate` and `click_rate` against
   delivered mail (`sent - bounced`) rather than everything sent. A bounced email
@@ -20,8 +24,6 @@
   SVGs safe: scripts inside one never execute, in an `<img>` or navigated to
   directly.
 
-
-All notable changes to `mailtea-sdk` are documented here.
 
 ## 0.8.0 (2026-08-06)
 
