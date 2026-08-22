@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added: `emails.get` returns `error` and `failed_at`. A failed send now says why
+  over the API, not only in Mailtea Studio. The wording is neutral — the delivery
+  provider's own message is never relayed — so it is safe to show to your users.
+
 - Added: `image/svg+xml` is an accepted asset type for `assets.upload` — SVG
   logos and marks upload like any raster. The public asset route serves every
   asset with `Content-Security-Policy: sandbox`, which is what makes hosting

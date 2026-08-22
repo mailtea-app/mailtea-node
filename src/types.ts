@@ -140,6 +140,12 @@ export interface RetrievedEmail {
   last_event: EmailStatus | null;
   /** Friendly alias of `last_event`. */
   status: EmailStatus | null;
+  /**
+   * Why the send failed, when it did. Neutral copy — the provider's own wording
+   * is never returned. `null` on every email that has not failed.
+   */
+  error: string | null;
+  failed_at: string | null;
   delayed_at: string | null;
   opened_at: string | null;
   open_count: number;
