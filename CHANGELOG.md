@@ -4,6 +4,17 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `domains.update` accepts `custom_return_path`, and every domain shape
+  carries `custom_return_path` / `custom_return_path_status`. Delegating a
+  subdomain as the envelope sender makes SPF align with your own domain instead
+  of ours, and routes bounces somewhere you can see. Mail keeps sending on the
+  default return-path until the delegated DNS resolves.
+
+- Changed: `to`, `cc` and `bcc` are validated as email addresses. A malformed
+  recipient now returns `400` instead of being accepted and failing at the
+  provider. The `"Name" <address>` form keeps working; an explicitly empty `cc`
+  or `bcc` still means "no cc".
+
 - Added: `domains.list` and `domains.get` return `open_tracking` /
   `click_tracking`, and `domains.update` accepts them — the sending domain's
   tracking policy is now readable and settable from the SDK.

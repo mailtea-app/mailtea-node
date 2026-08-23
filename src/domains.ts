@@ -43,6 +43,19 @@ export interface Domain {
    */
   open_tracking: boolean;
   click_tracking: boolean;
+  /**
+   * The delegated subdomain used as the envelope sender, so SPF authenticates —
+   * and aligns with — your own domain rather than ours, and bounces are routed
+   * somewhere you can see. `null` means the feature was never enabled, which is
+   * distinct from enabled-but-not-yet-verified (see `custom_return_path_status`).
+   */
+  custom_return_path: string | null;
+  /**
+   * `pending` until the delegated subdomain's MX and SPF records resolve,
+   * then `verified`. Until then mail still sends on the default return-path —
+   * an unverified return-path costs alignment, never delivery.
+   */
+  custom_return_path_status: "pending" | "verified" | "failed" | null;
 }
 
 /** Response of `domains.verify` — a {@link Domain} plus the operational MX check. */
@@ -68,6 +81,12 @@ export interface UpdateDomainInput {
   proxy_target?: string;
   open_tracking?: boolean;
   click_tracking?: boolean;
+  /**
+   * Custom return-path. `true` delegates the conventional `bounce.<domain>`
+   * subdomain; a string names the subdomain explicitly (it must sit under this
+   * domain); `false` or `null` reverts to the default return-path.
+   */
+  custom_return_path?: boolean | string | null;
 }
 
 export interface ListDomainsParams {
