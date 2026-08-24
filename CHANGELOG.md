@@ -2,7 +2,15 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+
+## 0.10.0 (2026-08-24)
+
+- Changed: every transactional webhook's `to` is the envelope the message was
+  actually delivered to, and a new `dropped_recipients` names anyone filtered
+  out (suppressed, or an address that could not be used). `dropped_recipients`
+  is also on the email record. If you reconcile deliveries from webhooks, read
+  `to` rather than the recipients you submitted — a partially-suppressed send
+  used to report a delivery that never happened.
 
 - Added: `domains.update` accepts `custom_return_path`, and every domain shape
   carries `custom_return_path` / `custom_return_path_status`. Delegating a

@@ -131,6 +131,13 @@ export interface EmailAttachmentMeta {
  * wire. `status` is a friendly alias the SDK derives from `last_event`.
  */
 export interface RetrievedEmail {
+  /**
+   * Recipients this message did not reach, and why. `to`/`cc`/`bcc` are what
+   * you asked for; a suppressed or unusable address is filtered out before
+   * sending, and named here. Empty when everyone was reached.
+   */
+  dropped_recipients?: Array<{ address: string; field: string; reason: string }>;
+
   object: "email";
   id: string;
   from: string | null;
