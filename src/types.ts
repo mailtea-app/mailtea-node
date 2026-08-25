@@ -192,7 +192,14 @@ export interface ListEmailsParams {
   tag_value?: string;
   /** Case-insensitive substring match on recipient, sender, or subject. */
   search?: string;
-  /** ISO 8601 lower bound on `created_at`. */
+  /**
+   * ISO 8601 lower bound on `created_at`.
+   *
+   * Clamped to the plan's analytics retention window — 30 days on most
+   * plans, 90 on Scale and Enterprise. A value reaching further back
+   * returns data from the start of that window rather than an error, and
+   * omitting it returns the window rather than all time.
+   */
   from_date?: string;
   /** ISO 8601 upper bound on `created_at`. */
   to_date?: string;
@@ -209,11 +216,24 @@ export interface EmailListResponse {
   limit: number;
   offset: number;
   has_more: boolean;
+  /**
+   * The window actually used — the clamped value when the request reached past
+   * the plan's analytics retention, and the start of the window when
+   * `from_date` was omitted.
+   */
+  from_date: string;
 }
 
 /** Optional date window for `emails.analytics`. */
 export interface EmailAnalyticsParams {
-  /** ISO 8601 lower bound on `created_at`. */
+  /**
+   * ISO 8601 lower bound on `created_at`.
+   *
+   * Clamped to the plan's analytics retention window — 30 days on most
+   * plans, 90 on Scale and Enterprise. A value reaching further back
+   * returns data from the start of that window rather than an error, and
+   * omitting it returns the window rather than all time.
+   */
   from_date?: string;
   /** ISO 8601 upper bound on `created_at`. */
   to_date?: string;
@@ -222,7 +242,12 @@ export interface EmailAnalyticsParams {
 /** Aggregate transactional metrics returned by `emails.analytics`. */
 export interface EmailAnalytics {
   object: "analytics";
-  from_date: string | null;
+  /**
+   * The window actually used — the clamped value when the request reached past
+   * the plan's analytics retention, and the start of the window when
+   * `from_date` was omitted.
+   */
+  from_date: string;
   to_date: string | null;
   /** Emails created in the window. */
   total: number;

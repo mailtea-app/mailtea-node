@@ -3,6 +3,24 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
+## 0.11.0 (2026-08-25)
+
+- Documented: the API now enforces your plan's analytics retention window on
+  `from_date`. It is clamped to 30 days on most plans and 90 on Scale and
+  Enterprise; a value reaching further back returns data from the start of that
+  window rather than an error, and omitting it returns the window rather than
+  all time.
+- **BREAKING (types only) — `EmailAnalytics.from_date` is now `string`, not
+  `string | null`.** The server always reports the window it used, so the field
+  can no longer be null. Under `strictNullChecks` a null comparison against it
+  is now a compile error; delete the null branch. No runtime behaviour changes,
+  and reading the field is unaffected.
+- Added: `EmailListResponse.from_date` — the list response now reports the
+  window used, the same way analytics does. That is how a clamped request stays
+  visible rather than silently returning less.
+- Changed: `EmailListParams.from_date`, `EmailAnalyticsParams.from_date` and
+  `EmailAnalytics.from_date` carry it in their doc comments.
+
 ## 0.10.0 (2026-08-24)
 
 - Changed: every transactional webhook's `to` is the envelope the message was
