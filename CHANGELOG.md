@@ -3,6 +3,20 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
+## 0.12.0 (2026-08-27)
+
+- Added: `baseUrl` falls back to the `MAILTEA_API_BASE_URL` environment
+  variable before defaulting to `https://api.mailtea.app`. Point a self-hosted
+  or local instance at the SDK without threading an option through your code.
+  An explicit `baseUrl` still wins. This closes a gap the other clients did not
+  have — the Python SDK, the CLI and the MCP server have always read it.
+- Fixed: the global `fetch` is now bound before it is stored, so the SDK works
+  on Cloudflare Workers without a wrapper. The stored reference is called bare,
+  which strips the global `this`; Node and browsers tolerate that, the Workers
+  runtime answers `TypeError: Illegal invocation`. Workers users no longer need
+  to pass `fetch: globalThis.fetch.bind(globalThis)`. A `fetch` you supply is
+  still used exactly as given.
+
 ## 0.11.0 (2026-08-25)
 
 - Documented: the API now enforces your plan's analytics retention window on

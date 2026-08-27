@@ -147,3 +147,64 @@ test("leaves code undefined when the API sends no code", async () => {
     }
   );
 });
+
+test("baseUrl falls back to MAILTEA_API_BASE_URL, and an explicit option still wins", async () => {
+  const previous = process.env.MAILTEA_API_BASE_URL;
+  process.env.MAILTEA_API_BASE_URL = "http://localhost:7787/";
+  try {
+    const seen: string[] = [];
+    const stubFetch = (async (input: RequestInfo | URL) => {
+      seen.push(String(input));
+      return new Response(JSON.stringify({ id: "txemail_1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }) as unknown as typeof fetch;
+
+    await new Mailtea("mt_pat_test", { fetch: stubFetch }).emails.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "s",
+      html: "<p>h</p>"
+    });
+    await new Mailtea("mt_pat_test", {
+      fetch: stubFetch,
+      baseUrl: "https://explicit.example"
+    }).emails.send({ from: "a@b.com", to: "c@d.com", subject: "s", html: "<p>h</p>" });
+
+    assert.equal(seen[0], "http://localhost:7787/v1/emails");
+    assert.equal(seen[1], "https://explicit.example/v1/emails");
+  } finally {
+    if (previous === undefined) delete process.env.MAILTEA_API_BASE_URL;
+    else process.env.MAILTEA_API_BASE_URL = previous;
+  }
+});
+
+test("the global fetch is bound, so a runtime that rejects a detached fetch still works", async () => {
+  // Stands in for the Cloudflare Workers runtime, which throws "Illegal
+  // invocation" when `fetch` is called with `this` detached from the global
+  // scope. Without the bind in the constructor, the SDK calls its stored
+  // reference bare and `this` is undefined here.
+  const previousFetch = globalThis.fetch;
+  (globalThis as { fetch: unknown }).fetch = function (this: unknown) {
+    if (this !== globalThis) throw new TypeError("Illegal invocation");
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: "txemail_1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+  };
+
+  try {
+    const sent = await new Mailtea("mt_pat_test").emails.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "s",
+      html: "<p>h</p>"
+    });
+    assert.equal(sent.id, "txemail_1");
+  } finally {
+    (globalThis as { fetch: unknown }).fetch = previousFetch;
+  }
+});

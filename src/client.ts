@@ -19,7 +19,10 @@ import { MailteaError } from "./errors.js";
 export interface MailteaOptions {
   /** API key (`mt_pat_...` or `mt_svc_...`). Falls back to `MAILTEA_API_KEY`. */
   apiKey?: string;
-  /** API base URL. Defaults to `https://api.mailtea.app`. */
+  /**
+   * API base URL. Falls back to `MAILTEA_API_BASE_URL`, then
+   * `https://api.mailtea.app`. Point it at a self-hosted or local instance.
+   */
   baseUrl?: string;
   /** Custom `fetch` implementation. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
@@ -27,12 +30,20 @@ export interface MailteaOptions {
 
 const DEFAULT_BASE_URL = "https://api.mailtea.app";
 
-function readEnvApiKey(): string | undefined {
-  // Guard `process` so the SDK works in edge runtimes without Node globals.
+// Guard `process` so the SDK works in edge runtimes without Node globals.
+function readEnv(name: string): string | undefined {
   if (typeof process !== "undefined" && process.env) {
-    return process.env.MAILTEA_API_KEY;
+    return process.env[name];
   }
   return undefined;
+}
+
+function readEnvApiKey(): string | undefined {
+  return readEnv("MAILTEA_API_KEY");
+}
+
+function readEnvBaseUrl(): string | undefined {
+  return readEnv("MAILTEA_API_BASE_URL");
 }
 
 /**
@@ -120,8 +131,17 @@ export class Mailtea {
     }
 
     this.apiKey = apiKey;
-    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.fetchImpl = resolvedFetch;
+    this.baseUrl = (options.baseUrl ?? readEnvBaseUrl() ?? DEFAULT_BASE_URL).replace(
+      /\/+$/,
+      ""
+    );
+    // Bind before storing. The stored reference is called bare
+    // (`this.fetchImpl(...)`), which strips the global `this` — Node and
+    // browsers tolerate that, but the Cloudflare Workers runtime rejects a
+    // detached `fetch` with "Illegal invocation". Binding here means a Worker
+    // does not have to pass `fetch: globalThis.fetch.bind(globalThis)` itself.
+    this.fetchImpl =
+      options.fetch ?? (resolvedFetch.bind(globalThis) as typeof fetch);
     const request = this.request.bind(this);
     const requestText = this.requestText.bind(this);
     this.emails = new Emails(request);

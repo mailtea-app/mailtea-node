@@ -29,10 +29,16 @@ console.log(id);
 
 The API key can be passed as a string, inside an options object
 (`new Mailtea({ apiKey })`), or omitted entirely to read `MAILTEA_API_KEY` from
-the environment. Override the base URL for self-hosted or local instances:
+the environment. Override the base URL for self-hosted or local instances,
+either explicitly or through `MAILTEA_API_BASE_URL`:
 
 ```ts
 const mailtea = new Mailtea(apiKey, { baseUrl: "http://localhost:7787" });
+```
+
+```bash
+# Same effect, no code change — an explicit `baseUrl` still takes precedence.
+export MAILTEA_API_BASE_URL="http://localhost:7787"
 ```
 
 ## API

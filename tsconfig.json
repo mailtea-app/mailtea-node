@@ -1,6 +1,23 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // Deliberately does NOT extend ../../tsconfig.base.json. This package is
+  // mirrored to the public mailtea-node repo as a standalone tree, where that
+  // file does not exist — and TypeScript/tsx treat a missing `extends` target
+  // as "no options", which silently dropped `jsx` and broke the React Email
+  // tests on every fresh clone. Everything the SDK needs is inlined below;
+  // keep it in step with tsconfig.base.json by hand.
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "types": ["node"],
     // Only the React Email tests use JSX; the shipped SDK has no React code
     // and no React dependency (see peerDependenciesMeta).
     "jsx": "react-jsx"
