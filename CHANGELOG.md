@@ -3,6 +3,16 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
+## Unreleased
+
+- Added: `contacts.setPropertyValues(contactId, { publication_id, values })` and
+  `contacts.listPropertyValues(contactId, { publication_id })`. These write and
+  read the per-contact values behind `{{contact.<key>}}` merge tags. Defining a
+  property only created the field — until now there was no way from the SDK to
+  put a value on a contact, so a script could define `first_name` and never set
+  it. Each entry takes either `property_id` or `key` (not both); an empty
+  `value` clears the property, and its `fallback_value` applies again.
+
 ## 0.12.0 (2026-08-27)
 
 - Added: `baseUrl` falls back to the `MAILTEA_API_BASE_URL` environment

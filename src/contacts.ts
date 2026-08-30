@@ -32,6 +32,35 @@ export interface ListContactsParams {
   search?: string;
 }
 
+/**
+ * One property value to write. Give EITHER `property_id` OR `key`, not both —
+ * `key` is usually what you have, since it is the name written in the template
+ * as `{{contact.<key>}}`.
+ *
+ * An empty `value` CLEARS the property, which makes the definition's
+ * `fallback_value` apply again on the next send.
+ */
+export type ContactPropertyValueInput =
+  | { property_id: string; key?: never; value: string }
+  | { key: string; property_id?: never; value: string };
+
+export interface SetContactPropertyValuesInput {
+  publication_id: string;
+  values: ContactPropertyValueInput[];
+}
+
+export interface ContactPropertyValue {
+  property_id: string;
+  key: string;
+  type: string;
+  value: string;
+}
+
+export interface ContactPropertyValues {
+  contact_id: string;
+  properties: ContactPropertyValue[];
+}
+
 /** The `contacts` resource. Access via `mailtea.contacts`. */
 export class Contacts {
   constructor(private readonly request: RequestFn) {}
@@ -84,6 +113,36 @@ export class Contacts {
     return this.request<DeletedResponse>(
       "DELETE",
       `/v1/contacts/${encodeURIComponent(idOrEmail)}${query({ ...params })}`
+    );
+  }
+
+  /**
+   * Set this contact's property values — the data behind `{{contact.<key>}}`
+   * merge tags.
+   *
+   * Defining a property (`mailtea.contactProperties.create`) only creates the
+   * field; this is what puts a value on a contact. Sending an empty string
+   * clears the value, and the definition's `fallback_value` takes over again.
+   */
+  setPropertyValues(
+    contactId: string,
+    input: SetContactPropertyValuesInput
+  ): Promise<ContactPropertyValues> {
+    return this.request<ContactPropertyValues>(
+      "PUT",
+      `/v1/contacts/${encodeURIComponent(contactId)}/properties`,
+      input
+    );
+  }
+
+  /** Read this contact's property values. */
+  listPropertyValues(
+    contactId: string,
+    params: { publication_id: string }
+  ): Promise<ContactPropertyValues> {
+    return this.request<ContactPropertyValues>(
+      "GET",
+      `/v1/contacts/${encodeURIComponent(contactId)}/properties${query({ ...params })}`
     );
   }
 }
