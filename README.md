@@ -63,6 +63,7 @@ export MAILTEA_API_BASE_URL="http://localhost:7787"
 | `senders.create / list / get / update / delete` | Manage named from-identities on verified sending domains |
 | `domains.create / list / get / verify / update / delete` | Manage sending domains (add, read DNS records, verify) |
 | `domains.tracking.create / list / verify / delete` | Manage CNAME tracking sub-domains under a domain |
+| `domains.claims.create / get / verify / cancel` | Take a domain back from another publication when `create` is refused with `domain_held_elsewhere` |
 | `suppressions.list / add / remove / export` | Org-wide suppression list (`export` returns CSV text) |
 | `templates.render / create / list / get / update / publish / duplicate / delete` | Manage stored email templates (`render` previews a spec without saving) |
 | `templates.listVersions / restoreVersion` | Template version history (newest 50). **A restore returns the template to `draft`** — sends stop until it is published again |

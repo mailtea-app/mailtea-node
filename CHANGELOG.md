@@ -3,8 +3,32 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
-## Unreleased
+## 0.13.0 (2026-09-03)
 
+- Added: `mailtea.domains.claims` — `create`, `get`, `verify` and `cancel`. When
+  adding a domain is refused with code `domain_held_elsewhere`, another
+  publication holds the host; publish one TXT record to prove you control its
+  DNS and the domain moves to you. Verifying before the record has propagated
+  is safe: the claim stays pending with the same record.
+- Added: `Domain` carries `region`, `tls`, `tracking_subdomain` and
+  `released_at`. A domain's region decides where its mail is sent from and is
+  fixed at creation; `tls: "enforced"` bounces rather than delivering in the
+  clear; a tracking subdomain serves opens and clicks from your own domain;
+  `released_at` is set when another publication claimed the host, and a
+  released domain cannot send whatever its `status` says.
+- Added: `domains.create` takes `region`, `tls` and `tracking_subdomain`;
+  `domains.update` takes the two that are mutable; `domains.list` takes `region`
+  and `status` filters.
+- Added: `DomainRefusalCode` is exported, so a refusal is matched on `code`
+  rather than on prose.
+- Added: `TrackingDomain.attached` — whether the host is registered on our edge,
+  which is what makes a certificate exist for it. A verified CNAME with
+  `attached: false` means links are still served from the platform host.
+- Changed: each row in `records` now says what it is FOR in `record`
+  (`Ownership`, `DKIM`, `SPF`, `MX`, `Return-Path`, `Tracking`), carries
+  `ttl: "Auto"`, and reports its OWN status rather than the domain's — including
+  `not_started` where nothing has checked the record yet. `type` still holds the
+  DNS type and `purpose` is unchanged.
 - Added: `contacts.setPropertyValues(contactId, { publication_id, values })` and
   `contacts.listPropertyValues(contactId, { publication_id })`. These write and
   read the per-contact values behind `{{contact.<key>}}` merge tags. Defining a
