@@ -26,8 +26,13 @@ export type DomainRecordRole =
   | "Tracking";
 
 /**
- * How far along ONE record is. `not_started` means nothing has ever checked it,
- * and only DKIM and the return-path pair can report it.
+ * How far along ONE record is. `not_started` means nothing has ever checked it.
+ *
+ * It is reported by DKIM, by the return-path pair, and by the `MX` row — the
+ * receiving MX is checked by `verify` and the answer is stored, so a domain
+ * nobody has verified reads `not_started` and one that has reads what the last
+ * verify found. Ownership and tracking rows never report it: for them `pending`
+ * is a genuine in-progress state.
  */
 export type DomainRecordStatus = "not_started" | "pending" | "verified" | "failed";
 
@@ -140,8 +145,14 @@ export interface Domain {
 
 /** Response of `domains.verify` — a {@link Domain} plus the operational MX check. */
 export interface VerifiedDomain extends Domain {
-  /** Whether the host's MX points at our inbound endpoint (email-purpose only;
-   *  `null` for site-only domains). */
+  /**
+   * Whether the host's MX points at our inbound endpoint (email-purpose only;
+   * `null` for site-only domains).
+   *
+   * Only `verify` returns this field, and only as the answer it just resolved.
+   * The same verdict is stored, so the `MX` row in `records` carries it on
+   * every later read — read that if you want it outside a verify.
+   */
   receiving_mx_found: boolean | null;
 }
 
@@ -178,8 +189,18 @@ export interface UpdateDomainInput {
   custom_return_path?: boolean | string | null;
   /** TLS policy for this domain's mail. */
   tls?: DomainTlsPolicy;
-  /** The subdomain to serve tracked links from, e.g. `links`. */
-  tracking_subdomain?: string;
+  /**
+   * Serve tracked links from your own domain: `links` gives `links.example.com`.
+   *
+   * `null` removes it, and the domain's links go back to being served from the
+   * Mailtea host. Links in mail you have already sent point at the old hostname
+   * and stop resolving — that is what removing one costs, and there is no way
+   * to reinstate them.
+   *
+   * An empty string is not a second spelling of `null`; it is refused with
+   * `tracking_subdomain_invalid`.
+   */
+  tracking_subdomain?: string | null;
   // `region` is deliberately absent: a domain's region is fixed at create, and
   // sending one here is refused with 400 `region_immutable`. Delete the domain
   // and add it again to move it.
@@ -418,7 +439,13 @@ export class Domains {
     );
   }
 
-  /** Update a domain's purpose, primary flag, or proxy target. */
+  /**
+   * Update a domain's purpose, primary flag, or proxy target.
+   *
+   * `tracking_subdomain: null` removes the tracking subdomain; omitting the
+   * field leaves it alone. The body is sent as given, so the `null` reaches the
+   * wire rather than being dropped as a falsy value.
+   */
   update(id: string, input: UpdateDomainInput): Promise<Domain> {
     return this.request<Domain>(
       "PATCH",

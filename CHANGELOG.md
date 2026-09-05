@@ -3,6 +3,18 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
+## Unreleased
+
+- Added: `domains.update` takes `tracking_subdomain: null` to remove a tracking
+  subdomain. The domain's links go back to being served from the Mailtea host.
+  Links in mail you have already sent point at the old hostname and stop
+  resolving — there is no way to reinstate them. An empty string is not the same
+  thing: it is refused with `tracking_subdomain_invalid`. `null` is accepted on
+  update only; `CreateDomainInput.tracking_subdomain` stays a `string`.
+- Changed: the `MX` row in `records` now reports what the last verify found,
+  instead of reading `pending` on every request but the verify itself. A domain
+  nobody has verified reads `not_started`.
+
 ## 0.13.0 (2026-09-03)
 
 - Added: `mailtea.domains.claims` — `create`, `get`, `verify` and `cancel`. When
