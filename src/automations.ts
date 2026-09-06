@@ -404,7 +404,11 @@ export class Automations {
   }
 
   /** Start an automation. A graph with errors is refused with a 422
-   *  `automation_invalid` carrying the `issues[]`. */
+   *  `automation_invalid` carrying the `issues[]`. A publication that cannot
+   *  send is a separate 422 `no_verified_sender`, carrying `reason`
+   *  (`NO_SENDER`, `DOMAIN_NOT_VERIFIED`, `WRONG_PURPOSE`, `DKIM_NOT_VERIFIED`
+   *  or `INVALID_FROM`) and the blocking `steps[]` — add a sender or verify
+   *  its sending domain, then activate again. */
   activate(id: string, params: { publication_id: string }): Promise<Automation> {
     return this.request<Automation>(
       "POST",

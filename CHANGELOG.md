@@ -5,6 +5,11 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Changed: `automations.activate` documents the `no_verified_sender` refusal.
+  A 422 with that code means a `send_email` step has no sender it can send
+  from; `reason` (`NO_SENDER`, `DOMAIN_NOT_VERIFIED`, `WRONG_PURPOSE`,
+  `DKIM_NOT_VERIFIED` or `INVALID_FROM`) says which, and `steps[]` names every
+  blocking step. Previously only `automation_invalid` was documented.
 - Added: `domains.update` takes `tracking_subdomain: null` to remove a tracking
   subdomain. The domain's links go back to being served from the Mailtea host.
   Links in mail you have already sent point at the old hostname and stop
