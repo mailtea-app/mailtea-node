@@ -5,6 +5,10 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `receiving_identity_status` on domain responses (create, get, update,
+  verify). `pending`, `verified`, `failed`, or `null` when the domain is not
+  registered to receive mail yet. Point an `MX` at Mailtea only once it reads
+  `verified`; it never gates `status`.
 - Changed: `automations.activate` documents the `no_verified_sender` refusal.
   A 422 with that code means a `send_email` step has no sender it can send
   from; `reason` (`NO_SENDER`, `DOMAIN_NOT_VERIFIED`, `WRONG_PURPOSE`,

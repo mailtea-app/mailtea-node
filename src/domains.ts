@@ -5,6 +5,8 @@ export type DomainStatus = "pending" | "verified";
 export type DomainPurpose = "email" | "site" | "both";
 /** DKIM verification state for an email-purpose domain. */
 export type DkimStatus = "pending" | "verified" | "failed";
+/** Whether a domain is registered to RECEIVE mail at Mailtea's inbound endpoint. */
+export type ReceivingIdentityStatus = "pending" | "verified" | "failed";
 
 /** A sending region. Set once, at create — a domain's region never changes. */
 export type DomainRegion = "us-west-1" | "eu-west-1" | "ap-southeast-1" | "ap-southeast-2";
@@ -116,6 +118,15 @@ export interface Domain {
   records?: DomainRecord[];
   /** DKIM state. Present on create/get/verify; omitted from list rows. */
   dkim_status?: DkimStatus | null;
+  /**
+   * Whether the domain is registered to receive mail at Mailtea's inbound
+   * endpoint: `pending`, `verified`, `failed`, or `null` when registration
+   * has not started (system and `site`-only domains, or domains added before
+   * receiving registration existed and not yet re-verified). Point your `MX`
+   * at Mailtea only once this reads `verified`. Present on create/get/verify;
+   * omitted from list rows.
+   */
+  receiving_identity_status?: ReceivingIdentityStatus | null;
   verified_at: string | null;
   created_at: string;
   updated_at: string;
