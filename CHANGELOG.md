@@ -3,7 +3,7 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
-## Unreleased
+## 0.14.0 (2026-09-10)
 
 - Added: `receiving_identity_status` on domain responses (create, get, update,
   verify). `pending`, `verified`, `failed`, or `null` when the domain is not
