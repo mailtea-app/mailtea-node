@@ -1,4 +1,5 @@
 import type { RequestFn } from "./resource.js";
+import type { EmailMode } from "./types.js";
 
 export type ApiKeyPermission = "full_access" | "sending_access";
 
@@ -9,17 +10,30 @@ export interface CreateApiKeyInput {
   permission?: ApiKeyPermission;
   /** Publication to scope a `sending_access` key to. */
   domain_id?: string;
+  /**
+   * `live` (default) or `test`. A test key is prefixed `mt_test_`, takes the
+   * same scopes and travels the same auth path, but its sends are simulated
+   * and it reads only test mail.
+   *
+   * It is not a data sandbox: a test key reads and writes your real contacts,
+   * templates, senders and webhooks. Only delivery is simulated.
+   */
+  mode?: EmailMode;
 }
 
 export interface CreatedApiKey {
   id: string;
   /** The full token — returned ONCE on creation. Store it securely. */
   token: string;
+  /** The mode the key was minted in: `live` or `test`. */
+  mode: EmailMode;
 }
 
 export interface ApiKeyListItem {
   id: string;
   name: string;
+  /** `live` or `test`. */
+  mode: EmailMode;
   created_at: string;
 }
 

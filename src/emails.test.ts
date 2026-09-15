@@ -84,6 +84,36 @@ test("list GETs /v1/emails with filters and returns the envelope", async () => {
   assert.equal(call.body, null);
 });
 
+test("list passes mode through to the query string", async () => {
+  const { mailtea, mock } = client({
+    json: {
+      object: "list",
+      data: [
+        {
+          object: "email",
+          id: "e1",
+          subject: "Hi",
+          last_event: "delivered",
+          mode: "test",
+          open_count: 0,
+          click_count: 0
+        }
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      has_more: false
+    }
+  });
+  const result = await mailtea.emails.list({ mode: "test" });
+
+  assert.equal(result.data[0]?.mode, "test");
+  assert.equal(
+    requireCall(mock.calls, 0).url,
+    "https://api.mailtea.app/v1/emails?mode=test"
+  );
+});
+
 test("list with no params hits the bare endpoint", async () => {
   const { mailtea, mock } = client({
     json: { object: "list", data: [], total: 0, limit: 50, offset: 0, has_more: false }

@@ -48,7 +48,7 @@ export MAILTEA_API_BASE_URL="http://localhost:7787"
 | `emails.send(input)` | Send a transactional email → `{ id }` |
 | `emails.batch(inputs)` | Send up to 100 emails → `{ data: [{ id }] }` |
 | `emails.get(id)` | Retrieve an email and its delivery status |
-| `emails.list(params?)` | List emails → `{ data, total, limit, offset, has_more }` |
+| `emails.list(params?)` | List emails → `{ data, total, limit, offset, has_more }`. Pass `mode: "test"` for test-mode mail |
 | `emails.analytics(params?)` | Aggregate metrics → `{ total, sent, delivered, opened, clicked, rates }` |
 | `emails.update(id, { scheduled_at })` | Reschedule a scheduled email |
 | `emails.reschedule(id, scheduledAt)` | Convenience wrapper over `update` |
@@ -69,7 +69,7 @@ export MAILTEA_API_BASE_URL="http://localhost:7787"
 | `templates.listVersions / restoreVersion` | Template version history (newest 50). **A restore returns the template to `draft`** — sends stop until it is published again |
 | `webhooks.create / list / get / update / delete` | Manage outbound event subscriptions |
 | `contactProperties.create / list / update / delete` | Manage custom contact fields (team-scoped) |
-| `apiKeys.create / list / revoke` | Manage API keys (`settings:write`) |
+| `apiKeys.create / list / revoke` | Manage API keys (`settings:write`). `create({ mode: "test" })` mints a test key |
 | `automations.create / list / get / update / delete` | Manage automations — a versioned graph of `steps` + `connections` |
 | `automations.validate(input)` | Dry-run a graph that does not exist yet → `{ valid, issues }` |
 | `automations.activate / pause / archive` | Lifecycle. `pause` keeps in-flight runs by default; `archive` cancels them by default |
@@ -127,6 +127,35 @@ Errors are thrown as `MailteaError` with `status`, `details`, and `requestId`. A
 event failures also carry a machine-readable `issues` array (each with a stable `code`, a
 `severity`, and the offending `step_key` / `path`) so a client can correct a graph
 programmatically instead of parsing prose.
+
+## Test mode
+
+A test key (`mt_test_…`) sends nothing. Every message it creates is validated,
+recorded and emits webhooks, but is never handed to a provider — so your CI can
+point at production Mailtea with your real code and your real webhook handler.
+
+```ts
+const key = await mailtea.apiKeys.create({ name: "CI", mode: "test" });
+// key.token starts with mt_test_ and key.mode === "test"
+
+const test = new Mailtea(key.token);
+await test.emails.send({
+  from: "you@yourdomain.com",
+  to: "bounced@test.mailtea.email",
+  subject: "Bounce handling",
+  html: "<p>Never delivered.</p>"
+});
+
+const { data } = await test.emails.list({ mode: "test" });
+```
+
+Reserved recipients on `test.mailtea.email` force an outcome — `delivered@`,
+`bounced@`, `complained@`, `delayed@`, `failed@` — and the first `to` recipient
+decides. Every email carries `mode`, and a test key reads only test mail while a
+live key reads only live mail; there is no mixed view.
+
+A test key is **not** a data sandbox. It reads and writes your real contacts,
+templates, senders and webhooks. Only delivery is simulated.
 
 ## License
 

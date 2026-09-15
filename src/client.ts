@@ -17,7 +17,11 @@ import { Events, EventDefinitions } from "./events.js";
 import { MailteaError } from "./errors.js";
 
 export interface MailteaOptions {
-  /** API key (`mt_pat_...` or `mt_svc_...`). Falls back to `MAILTEA_API_KEY`. */
+  /**
+   * API key (`mt_pat_...`, `mt_svc_...`, or `mt_test_...` for a test key whose
+   * sends are simulated rather than delivered). Falls back to
+   * `MAILTEA_API_KEY`.
+   */
   apiKey?: string;
   /**
    * API base URL. Falls back to `MAILTEA_API_BASE_URL`, then
@@ -197,14 +201,21 @@ export class Mailtea {
     // `marketing_plan_required` on 402). Branching on `code` survives copy
     // changes in a way that string-matching `message` does not.
     let code: string | undefined;
+    // Some routes answer with `reason` instead of `code` — the test-mode
+    // refusals do (`mode_not_available`, `test_recipient_in_live_mode`,
+    // `test_mode_daily_cap`). Dropping it left those callers with nothing
+    // machine-readable to branch on at all.
+    let reason: string | undefined;
     try {
       const errorBody = (await response.json()) as {
         error?: string;
         code?: string;
+        reason?: string;
         details?: unknown;
       } | null;
       if (errorBody?.error) message = errorBody.error;
       if (typeof errorBody?.code === "string") code = errorBody.code;
+      if (typeof errorBody?.reason === "string") reason = errorBody.reason;
       details = errorBody?.details;
     } catch {
       // Non-JSON error body — keep the status-line message.
@@ -212,6 +223,7 @@ export class Mailtea {
     throw new MailteaError(message, {
       status: response.status,
       code,
+      reason,
       details,
       requestId
     });

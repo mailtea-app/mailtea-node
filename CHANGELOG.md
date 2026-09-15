@@ -3,6 +3,31 @@
 All notable changes to `mailtea-sdk` are documented here.
 
 
+## 0.15.0 (2026-09-15)
+
+- Added: test mode. `apiKeys.create({ mode: "test" })` mints a test key
+  (prefixed `mt_test_`) whose sends are validated, recorded and webhook-emitting
+  but never delivered, so CI can run against production Mailtea with your real
+  code and your real webhook handler. A test key is **not** a data sandbox — it
+  reads and writes your real contacts, templates, senders and webhooks. Only
+  delivery is simulated.
+- Added: `mode` on `ListEmailsParams`, so `emails.list({ mode: "test" })` reads
+  test-mode mail. There is no mixed view: a test key reads only test emails and
+  a live key only live ones, and asking for the mode your key is not in is a 400
+  rather than an empty page.
+- Added: `mode` on `EmailListItem`, `RetrievedEmail`, `CreatedApiKey` and
+  `ApiKeyListItem`, plus the `EmailMode` type — an open union like
+  `EmailStatus`, so a value added server-side still types.
+- Note: `mode` is never accepted on a send. The key decides.
+- Reserved recipients on `test.mailtea.email` force an outcome: `delivered@`,
+  `bounced@`, `complained@`, `delayed@`, `failed@`. The first `to` recipient
+  decides; anything else is delivered.
+- Added: `MailteaError.reason` — the API's second machine-readable
+  discriminator, alongside `code`. Several routes answer with `reason` and no
+  `code` (`mode_not_available`, `test_recipient_in_live_mode`,
+  `test_mode_daily_cap`), and it was being dropped when the response was
+  parsed, leaving those callers to string-match the message.
+
 ## 0.14.0 (2026-09-10)
 
 - Added: `receiving_identity_status` on domain responses (create, get, update,

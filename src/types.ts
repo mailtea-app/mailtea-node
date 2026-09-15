@@ -115,6 +115,19 @@ export type EmailStatus =
   // eslint-disable-next-line @typescript-eslint/ban-types
   | (string & {});
 
+/**
+ * Whether an email is real mail or a simulated test-mode send.
+ *
+ * A test key (`mt_test_…`) stamps `test` on everything it sends; a live key
+ * stamps `live`. Nothing in test mode reaches a provider. The open string
+ * union matches `EmailStatus` — known values autocomplete, new ones still type.
+ */
+export type EmailMode =
+  | "live"
+  | "test"
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  | (string & {});
+
 export interface EmailTag {
   name: string;
   value: string;
@@ -155,6 +168,11 @@ export interface RetrievedEmail {
   /** Friendly alias of `last_event`. */
   status: EmailStatus | null;
   /**
+   * `live` for real mail, `test` for a message sent with a test key. A test
+   * email is validated, recorded and emits webhooks, but is never delivered.
+   */
+  mode: EmailMode;
+  /**
    * Why the send failed, when it did. Neutral copy — the provider's own wording
    * is never returned. `null` on every email that has not failed.
    */
@@ -180,6 +198,8 @@ export interface EmailListItem {
   created_at: string | null;
   scheduled_at: string | null;
   last_event: EmailStatus | null;
+  /** `live` for real mail, `test` for a message sent with a test key. */
+  mode: EmailMode;
   open_count: number;
   click_count: number;
   tags: EmailTag[] | null;
@@ -188,6 +208,14 @@ export interface EmailListItem {
 /** Filters + offset pagination for `emails.list`. */
 export interface ListEmailsParams {
   status?: EmailStatus;
+  /**
+   * Which mail to return: `live` or `test`. There is no mixed view.
+   *
+   * A test key reads only test emails and a live key only live ones, so this
+   * filter is for a session-backed credential; passing the mode your key is not
+   * in is a 400 rather than an empty list.
+   */
+  mode?: EmailMode;
   tag_name?: string;
   tag_value?: string;
   /** Case-insensitive substring match on recipient, sender, or subject. */
