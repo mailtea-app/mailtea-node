@@ -2,6 +2,120 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Added: `Post.from` and `Post.reply_to`, the From and Reply-To set on a post
+  (`null` when the named sender or the publication default decides). The API
+  now keeps the `from` and `reply_to` you pass to `posts.create` and
+  `posts.update` instead of dropping them.
+- Changed: `name` on `posts.create` / `posts.update` is only the post's internal
+  name and no longer overwrites the subject. `posts.update` changes only the
+  fields you pass, and `""` clears `name`, `from` or `reply_to`.
+- Note: a `from` that is not on one of the publication's verified sending
+  domains is now refused with a 422 (the same `reason`, `code` and `domain` as
+  `emails.send`), and `reply_to` must be a valid address.
+
+- Docs: `automations.activate` lists the two cloud-only `no_verified_sender`
+  reasons, `CUSTOM_DOMAIN_REQUIRED` and the new `BUILT_IN_SENDER` (a step sends
+  from the built-in `{slug}.mailtea.email` address). No runtime change.
+- Changed: `domains.list({ region })` accepts any string as well as the catalog
+  regions, because the API now also accepts the deployment's default region,
+  which a domain with no stored region reports (for example `us-east-1` in local
+  development or on a self-hosted install). Type-only; no runtime change.
+- Docs: the `assets` resource no longer says SVG is refused. It is accepted and
+  served under a sandboxing Content-Security-Policy; use PNG or JPEG for email,
+  because Gmail and Outlook do not show SVG.
+- Breaking: `posts.create` with `template_id` now HTML-escapes the `variables`
+  you pass, the same as every other send. HTML passed in a `{{key}}` value now
+  arrives as visible text, and a value you escaped yourself arrives
+  double-escaped. Put `{{{key}}}` in the template where a value is meant to be
+  raw HTML. Variables are now filled in both the `{{key}}` and Visual Email
+  Designer `{key}` forms. A declared variable you do not pass stays in the
+  post with its `fallback_value`, so the broadcast gives each recipient their
+  own value or that fallback, and undeclared tokens like
+  `{{contact.first_name}}` are left for the broadcast too. The post keeps the
+  template's published page style, is wrapped in that page, and has its
+  show-if blocks decided per recipient when it is sent. Before, only the
+  variables you passed were replaced, raw, and only in `{{key}}` form. It uses
+  the template's published version; Mailtea Studio's "Use template" starts
+  from the latest saved design instead.
+- Changed: `templates.update` and `templates.restoreVersion` no longer move a
+  published template back to draft. The template keeps its published status,
+  and automations and the API keep sending its published version until
+  `templates.publish` is called again. The template's `from` and `reply_to`
+  are part of the published version too, so a new sender or reply-to address
+  reaches sends only after the next publish. `templates.unpublish` is now the
+  only way to stop a published template sending, short of deleting it, and it
+  drops the stored published version so the next publish starts from the
+  current content.
+- Added: `has_unpublished_versions` on `Template` and `TemplateListItem`. True
+  only when the template is published and its saved content (From, Reply-To
+  and the style profile included) differs from the published version.
+- Added: `TemplateVersion.is_published`: true for the one entry automations
+  and the API are sending now. `is_current` is now described as what it is:
+  the entry that matches the working copy (the saved design being edited), not
+  necessarily what is sending. `is_published` is false on every entry of a
+  draft, and on a template published before the field existed until it is
+  published again.
+- Changed: `templates.update` returns `UpdatedTemplate`: the template plus the
+  PATCH reply's `unpublished` and, when the edit is not live yet, `message`.
+- Changed: `RestoredTemplateVersion.unpublished` and the PATCH reply's
+  `unpublished` are kept for compatibility and are now always `false`. Check
+  `has_unpublished_versions` (or the reply's `message`) instead.
+- Changed (API behavior): a template variable's `fallback_value` can no longer
+  contain `{` or `}`. Creating a template with one, or changing a fallback
+  to one on update, is a 400 ("Fallbacks can't contain { or }."). A value
+  the template already stores is accepted unchanged, so a template saved
+  before the rule keeps saving. Inline chip fallbacks such as
+  `{first_name|Mom & Pop}` now render as written instead of double-escaped.
+- Added: `AutomationValidationIssue.pre_existing`, set by the API when the
+  version the automation last ran on already had the same problem (same code,
+  step and path).
+- Changed (API behavior): saving an active automation is refused only when the
+  edit adds an error the live version does not already have. The 422
+  `active_graph_invalid` reply's `issues` lists just those new problems.
+  Before, any error refused the save, even one the live version already had.
+  Starting refuses every error as before, except an `unknown_step_ref` at a
+  `config.*` path or a trigger `missing_branch` that the version the
+  automation last ran on already had, so pausing and starting an unchanged
+  automation keeps working. Issues the last live version already had come back
+  with `pre_existing: true`.
+- Added: `AutomationValidationIssue.field`, what a rule reads (the rule's
+  `field`, or the path in a `{"var": ...}` value, e.g.
+  `steps.welcome.opened`) when the issue is about one.
+- Changed (API behavior): two issues are the same problem when their code and
+  step match, and their `field` or, when there is none, their `path`. Moving
+  a rule, by removing a rule beside it or putting it in a group, no longer
+  makes a problem the live version already had look new. An error is
+  `pre_existing` only if the live version had an error there, not a warning.
+- Changed (API behavior): `validate_only` on an active automation answers the
+  way the save would. A trigger change is a 422 `trigger_locked_while_active`,
+  a change that adds a problem is a 422 `active_graph_invalid` listing only
+  the new problems, and otherwise issues come back with `pre_existing` marked
+  against the version live now. Before, it returned every issue unmarked.
+- Changed (API behavior): changing the trigger (its type or key) of an active
+  automation is now refused with 422 `trigger_locked_while_active`. Pause it
+  first; draft and paused automations can still change their trigger. Before,
+  the change was accepted.
+- Added (API behavior): new validation rules. A trigger with nothing after it
+  is a `missing_branch` error at `branches.next`. A rule or `{"var": ...}`
+  value that reads `steps.<key>.*` for a step that isn't in the automation is
+  an `unknown_step_ref` error at that `config.*` path, or a warning when the
+  `{"var": ...}` has a `default`. A rule or value that reads
+  `event.properties.*` when the automation does not start from an app event is
+  the new warning `event_field_without_event_trigger`.
+- Changed: `SendEmailInput.subject` is optional when you send a `template`,
+  and `from` / `sender_id` may both be left out with one. The API then uses
+  the template's published subject, and its sender is chosen the way an
+  automation step chooses one (the publication's default sender, then the
+  template's own From). Without a template both are still required. Batch
+  items are unchanged: `BatchEmailItemInput` still requires `from` and
+  `subject`.
+- Behaviour (API, no SDK change needed): a template send now fills the
+  template's variables into the subject with the same values and fallbacks as
+  the body. A template built in the Visual Email Designer is delivered inside
+  its designed page background, card and font. Raw HTML templates are sent
+  exactly as stored.
 
 ## 0.15.0 (2026-09-15)
 

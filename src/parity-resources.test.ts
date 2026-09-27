@@ -229,6 +229,28 @@ test("templates.update PATCHes with publication_id in the query", async () => {
   });
 });
 
+// The PATCH reply is the template plus `unpublished` and, when the edit is not
+// live yet, `message`. Both are typed, so a caller can read them without a cast.
+test("templates.update returns the saved-but-not-published signal", async () => {
+  const message =
+    "Your changes are saved but not published. Automations and the API keep sending the published version until you publish this template again.";
+  const { mailtea } = client({
+    json: {
+      object: "template",
+      id: "etpl_1",
+      status: "published",
+      has_unpublished_versions: true,
+      unpublished: false,
+      message
+    }
+  });
+  const updated = await mailtea.templates.update("etpl_1", { publication_id: PUB, from: "new@example.com" });
+  assert.equal(updated.status, "published");
+  assert.equal(updated.has_unpublished_versions, true);
+  assert.equal(updated.unpublished, false);
+  assert.equal(updated.message, message);
+});
+
 test("templates.unpublish POSTs /v1/templates/:id/unpublish with no body", async () => {
   const { mailtea, mock } = client({
     json: { object: "template", id: "etpl_1", status: "draft", published_at: "2026-01-01T00:00:00.000Z" }
@@ -280,6 +302,7 @@ test("templates.listVersions GETs /v1/templates/:id/versions with limit, and ret
           name: "Weekly digest",
           sealed: true,
           is_current: true,
+          is_published: false,
           created_at: "2026-07-28T10:00:00.000Z",
           updated_at: "2026-07-28T10:09:00.000Z",
           author: { id: "usr_1", name: "Dave", email: "d@x.com", image: null }
@@ -290,6 +313,8 @@ test("templates.listVersions GETs /v1/templates/:id/versions with limit, and ret
   });
   const history = await mailtea.templates.listVersions("etpl_1", { publication_id: PUB, limit: 10 });
   assert.equal(history.data[0]?.is_current, true);
+  // The working copy is not what is sending while there are unpublished changes.
+  assert.equal(history.data[0]?.is_published, false);
   assert.equal(history.data[0]?.author?.id, "usr_1");
   assert.equal(history.retention.max_versions, 50);
   const call = requireCall(mock.calls, 0);
@@ -300,21 +325,24 @@ test("templates.listVersions GETs /v1/templates/:id/versions with limit, and ret
   );
 });
 
-test("templates.restoreVersion POSTs the version path and reports the unpublish", async () => {
+test("templates.restoreVersion POSTs the version path and reports the pending publish", async () => {
   const { mailtea, mock } = client({
     json: {
       restored: true,
       restored_from_version: 3,
-      unpublished: true,
-      message: "Restored version 3. This template is now a draft — automations and the API have STOPPED sending it until it is published again.",
-      template: { object: "template", id: "etpl_1", status: "draft" }
+      unpublished: false,
+      message:
+        "Restored version 3. Your changes are saved but not published. Automations and the API keep sending the published version until you publish this template again.",
+      template: { object: "template", id: "etpl_1", status: "published", has_unpublished_versions: true }
     }
   });
   const result = await mailtea.templates.restoreVersion("etpl_1", 3, { publication_id: PUB });
   assert.equal(result.restored, true);
-  // The consequence a caller most needs: the restore stopped the sends.
-  assert.equal(result.unpublished, true);
-  assert.equal(result.template.status, "draft");
+  // `unpublished` is always false now; the template stays published and
+  // `has_unpublished_versions` is what says the restored design is not live yet.
+  assert.equal(result.unpublished, false);
+  assert.equal(result.template.status, "published");
+  assert.equal(result.template.has_unpublished_versions, true);
   const call = requireCall(mock.calls, 0);
   assert.equal(call.method, "POST");
   assert.equal(

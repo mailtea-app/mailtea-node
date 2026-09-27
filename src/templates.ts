@@ -70,6 +70,14 @@ export interface Template {
   reply_to: string | null;
   variables: TemplateVariable[];
   status: TemplateStatus;
+  /** True only when the template is
+   *  published and its saved content differs from the published version: an
+   *  edit or restore since the last publish that has not gone live yet.
+   *  Always `false` for a draft. Editing or restoring a published template no
+   *  longer unpublishes it: the saved content becomes the working copy, the
+   *  published version keeps sending, and `template.publish` makes the working
+   *  copy live. */
+  has_unpublished_versions: boolean;
   published_at: string | null;
   created_at: string;
   updated_at: string;
@@ -89,6 +97,7 @@ export interface TemplateListItem {
   tags: string[];
   format: TemplateFormat;
   status: TemplateStatus;
+  has_unpublished_versions: boolean;
   published_at: string | null;
   created_at: string;
   updated_at: string;
@@ -150,6 +159,17 @@ export interface UpdateTemplateInput {
   variables?: TemplateVariable[];
 }
 
+/** The `templates.update` response: the template as saved, plus two fields
+ *  only the PATCH reply carries. */
+export interface UpdatedTemplate extends Template {
+  /** Kept for compatibility with clients written against the old rule. Always
+   *  `false` now: editing a template never unpublishes it. */
+  unpublished: boolean;
+  /** Present only when `has_unpublished_versions` is true. Says the change is
+   *  saved but not published yet, safe to surface verbatim. */
+  message?: string;
+}
+
 export interface ListTemplatesParams {
   publication_id: string;
   limit?: number;
@@ -183,10 +203,18 @@ export interface TemplateVersion {
   name: string;
   /** Closed to further coalescing — no later edit can fold into it. */
   sealed: boolean;
-  /** The entry whose design is the template's live content. NOT necessarily the
-   *  newest: a metadata-only update bumps the template without writing a
-   *  version, so `is_current` is the comparison, not the position. */
+  /** The entry that matches the working copy: the saved design you are
+   *  editing, which is not necessarily what is sending (see `is_published`).
+   *  Not necessarily the newest either: a metadata-only update bumps the
+   *  template without writing a version, so `is_current` is the comparison,
+   *  not the position. */
   is_current: boolean;
+  /** The entry automations and the API are sending now, recorded when the
+   *  template is published. At most one entry carries it. False for every
+   *  entry while the template is a draft, and for all of them when nothing was
+   *  recorded: a template published before this field existed, and not
+   *  published again since, may have none marked. */
+  is_published: boolean;
   created_at: string;
   updated_at: string;
   author: TemplateVersionAuthor | null;
@@ -226,12 +254,14 @@ export interface RestoredTemplateVersion {
   reason?: "identical";
   /** Which version supplied the design. Absent on a no-op. */
   restored_from_version?: number;
-  /** Whether this call took the template out of circulation. See
-   *  {@link Templates.restoreVersion} — a restore is a content write, so it
-   *  returns a published template to `draft` and sends STOP until it is
-   *  published again. */
+  /** Kept for compatibility with clients written against the old rule. Always
+   *  `false` now: a restore no longer unpublishes a template. Check
+   *  `template.has_unpublished_versions` instead to see whether the restored
+   *  design is live yet. */
   unpublished: boolean;
-  /** Human-readable summary of what happened, safe to surface verbatim. */
+  /** Human-readable summary of what happened, safe to surface verbatim. Names
+   *  the restored version, and when the template is published and the restored
+   *  design is not live yet, says so and points at `template.publish`. */
   message: string;
   /** The template as it stands after the call. */
   template: Template;
@@ -270,18 +300,26 @@ export class Templates {
     );
   }
 
-  /** Update a template. */
-  update(id: string, input: UpdateTemplateInput): Promise<Template> {
+  /** Update a template.
+   *
+   *  Editing a published template never unpublishes it. The change, including
+   *  a new `from` or `reply_to`, is saved as the working copy and the published
+   *  version keeps sending until {@link Templates.publish} is called again;
+   *  `has_unpublished_versions` and `message` on the reply say so. */
+  update(id: string, input: UpdateTemplateInput): Promise<UpdatedTemplate> {
     // The templates API reads publication_id from the query string; the rest of
     // the fields go in the body.
-    return this.request<Template>(
+    return this.request<UpdatedTemplate>(
       "PATCH",
       `/v1/templates/${encodeURIComponent(id)}${query({ publication_id: input.publication_id })}`,
       input
     );
   }
 
-  /** Publish a template (its `status` becomes `published`). */
+  /** Publish a template: its saved content, From and Reply-To included,
+   *  becomes the version that sends, and a draft's `status` becomes
+   *  `published`. On a template that is already published, this is how saved
+   *  changes go live. */
   publish(id: string, params: { publication_id: string }): Promise<Template> {
     return this.request<Template>(
       "POST",
@@ -290,7 +328,10 @@ export class Templates {
   }
 
   /** Return a published template to draft. `published_at` is kept — it records
-   *  that the template was published once, not that it still is. */
+   *  that the template was published once, not that it still is. Since an edit
+   *  no longer unpublishes a template, this is now the only way to stop it
+   *  sending short of deleting it, and it also drops the published version, so
+   *  the next publish starts from the current (working) content. */
   unpublish(id: string, params: { publication_id: string }): Promise<Template> {
     return this.request<Template>(
       "POST",
@@ -333,11 +374,12 @@ export class Templates {
 
   /** Put an earlier design back.
    *
-   *  **A restore returns the template to `draft`.** It is a content write, so
-   *  automations and the API STOP sending this template until it is published
-   *  again; `unpublished` on the response reports whether that actually
-   *  happened, so a caller that reads nothing else still learns its own call
-   *  stopped the sends.
+   *  **A restore no longer unpublishes the template.** It is a content write,
+   *  and lands in the working copy: a published template keeps sending its
+   *  published version until `template.publish` makes the restored design
+   *  live. `unpublished` on the response is kept for compatibility and is
+   *  always `false`; check `template.has_unpublished_versions` (or the
+   *  response `message`) to see whether the restored design is live yet.
    *
    *  History is forward-only — a restore does not rewind. It records the state
    *  it replaced as its own version and then adds the restored design as a new

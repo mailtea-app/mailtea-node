@@ -10,7 +10,8 @@ export interface TemplateRef {
 }
 
 /** Input for `emails.send`. Provide inline content (`html`/`text`) OR a `template`.
- *  Provide exactly one of `from` or `sender_id`. */
+ *  Provide exactly one of `from` or `sender_id`, or neither with a `template`
+ *  (its sender is used). `subject` is optional with a `template` too. */
 /**
  * A React element, described structurally so the SDK keeps its zero-dependency
  * install — a JSX element satisfies this without the SDK importing React types.
@@ -27,7 +28,11 @@ export interface SendEmailInput {
   /** A verified publication sender to send as. Mutually exclusive with `from`. */
   sender_id?: string;
   to: string | string[];
-  subject: string;
+  /**
+   * Required unless you send a `template`, whose published subject is then used.
+   * With a template, its variables fill the subject the same way as the body.
+   */
+  subject?: string;
   html?: string;
   /**
    * A React Email component. Rendered to HTML **in your process** before the
@@ -65,11 +70,11 @@ export interface SendEmailInput {
 
 /** One item in an `emails.batch` call — like `SendEmailInput` minus
  *  attachments/scheduling. Batch items require an explicit `from` (sender_id is
- *  single-send only). */
+ *  single-send only) and a `subject`. */
 export type BatchEmailItemInput = Omit<
   SendEmailInput,
-  "attachments" | "scheduled_at" | "sender_id" | "from"
-> & { from: string };
+  "attachments" | "scheduled_at" | "sender_id" | "from" | "subject"
+> & { from: string; subject: string };
 
 /** Input for `emails.batch` (1–100 items). */
 export type BatchEmailInput = BatchEmailItemInput[];

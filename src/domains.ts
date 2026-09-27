@@ -221,8 +221,13 @@ export interface ListDomainsParams {
   publication_id: string;
   limit?: number;
   after?: string;
-  /** Only domains sending from this region. */
-  region?: DomainRegion;
+  /**
+   * Only domains sending from this region, as the list reports it. Besides the
+   * catalog regions this accepts the deployment's default region, which a
+   * domain with no stored region reports and which can sit outside the catalog
+   * (`us-east-1` in local development, anything on a self-host install).
+   */
+  region?: DomainRegion | (string & {});
   /** Only domains in this verification state. */
   status?: DomainStatus;
 }

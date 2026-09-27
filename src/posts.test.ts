@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Mailtea } from "./index.js";
+import { Mailtea, type Post, type UpdatePostInput } from "./index.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
 test("posts.sendTest POSTs /v1/posts/:id/test with recipients + from", async () => {
@@ -172,4 +172,38 @@ test("posts.delete DELETEs /v1/posts/:id", async () => {
   const call = requireCall(mock.calls, 0);
   assert.equal(call.method, "DELETE");
   assert.equal(call.url, "https://api.mailtea.app/v1/posts/iss_1");
+});
+
+test("posts.get returns the post's own from and reply_to, and name apart from subject", async () => {
+  const mock = createMockFetch({
+    json: {
+      object: "post",
+      id: "iss_1",
+      publication_id: "pub_1",
+      name: "Internal: launch",
+      subject: "Pulse is live",
+      from: "Sam <sam@acme.com>",
+      reply_to: "help@acme.com",
+      status: "draft",
+      html: null,
+      text: null,
+      created_at: "2026-09-27T00:00:00.000Z",
+      scheduled_at: null,
+      sent_at: null
+    }
+  });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const post: Post = await mailtea.posts.get("iss_1");
+  assert.equal(post.name, "Internal: launch");
+  assert.equal(post.subject, "Pulse is live");
+  assert.equal(post.from, "Sam <sam@acme.com>");
+  assert.equal(post.reply_to, "help@acme.com");
+});
+
+test("posts.update can clear name, from and reply_to with empty strings", async () => {
+  const mock = createMockFetch({ json: { object: "post", id: "iss_1" } });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const input: UpdatePostInput = { name: "", from: "", reply_to: "" };
+  await mailtea.posts.update("iss_1", input);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), { name: "", from: "", reply_to: "" });
 });

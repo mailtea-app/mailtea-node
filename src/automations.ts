@@ -57,7 +57,20 @@ export interface AutomationValidationIssue {
   step_key?: string;
   /** Dotted/indexed location, e.g. `connections[2].to` or `config.duration`. */
   path?: string;
+  /** What a rule reads, when the issue is about one: the rule's `field`, or
+   *  the path in a `{"var": ...}` value, e.g. `steps.welcome.opened`. Unlike
+   *  `path` it does not change when the rule moves. */
+  field?: string;
   message: string;
+  /** Set by the API: true when the version this automation last ran on
+   *  already had the same problem (same code and step, and the same `field`,
+   *  or `path` when there is none; an error only counts if that version had
+   *  an error there). Such an error
+   *  does not block saving an ACTIVE automation. For the two rules added in
+   *  2026-09 (`unknown_step_ref` at a `config.*` path, and `missing_branch` at
+   *  `branches.next` on the trigger) it does not block starting it again
+   *  either; every other error still does. */
+  pre_existing?: boolean;
 }
 
 export interface AutomationStep {
@@ -374,8 +387,11 @@ export class Automations {
   }
 
   /** Update an automation. Saving is never blocked for a draft/paused/archived
-   *  automation — issues ride along; a graph change on an ACTIVE one with errors
-   *  is a 422 (pause, save, start). */
+   *  automation, and its issues ride along. A graph change on an ACTIVE one is a 422
+   *  `active_graph_invalid` only when it adds an error the live version does
+   *  not already have, and `issues` then lists just those new problems.
+   *  Changing the trigger of an ACTIVE automation is a 422
+   *  `trigger_locked_while_active`: pause it first. */
   update(
     id: string,
     input: UpdateAutomationInput & { validate_only: true }
@@ -404,11 +420,17 @@ export class Automations {
   }
 
   /** Start an automation. A graph with errors is refused with a 422
-   *  `automation_invalid` carrying the `issues[]`. A publication that cannot
+   *  `automation_invalid` carrying the `issues[]`, except an
+   *  `unknown_step_ref` at a `config.*` path or a trigger `missing_branch`
+   *  that the version it last ran on already had (`pre_existing: true`),
+   *  so pausing and starting an unchanged automation keeps working. A
+   *  never-started draft is blocked by those too. A publication that cannot
    *  send is a separate 422 `no_verified_sender`, carrying `reason`
-   *  (`NO_SENDER`, `DOMAIN_NOT_VERIFIED`, `WRONG_PURPOSE`, `DKIM_NOT_VERIFIED`
-   *  or `INVALID_FROM`) and the blocking `steps[]` — add a sender or verify
-   *  its sending domain, then activate again. */
+   *  (`NO_SENDER`, `DOMAIN_NOT_VERIFIED`, `WRONG_PURPOSE`, `DKIM_NOT_VERIFIED`,
+   *  `INVALID_FROM`, `CUSTOM_DOMAIN_REQUIRED` or `BUILT_IN_SENDER`) and the
+   *  blocking `steps[]`. Add a sender or verify its sending domain; for
+   *  `BUILT_IN_SENDER`, send the step from your verified domain instead of the
+   *  built-in address. Then activate again. */
   activate(id: string, params: { publication_id: string }): Promise<Automation> {
     return this.request<Automation>(
       "POST",

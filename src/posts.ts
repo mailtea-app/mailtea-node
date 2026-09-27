@@ -8,8 +8,21 @@ export interface Post {
   object: "post";
   id: string;
   publication_id: string;
+  /**
+   * Internal name in Mailtea Studio. Separate from `subject`: renaming a post
+   * never changes what subscribers see. Equals `subject` when not set.
+   */
   name: string;
+  /** The subject line subscribers see. */
   subject: string;
+  /**
+   * The From set on this post, or `null` when the named sender or the
+   * publication default decides. A From on the built-in `*.mailtea.email`
+   * address is kept for test emails, but the post sends from the default sender.
+   */
+  from: string | null;
+  /** The Reply-To set on this post, or `null` when the sender's applies. */
+  reply_to: string | null;
   status: PostStatus;
   html: string | null;
   text: string | null;
@@ -41,23 +54,46 @@ export interface PostTestSendResult {
 export interface CreatePostInput {
   /** Publication the post belongs to. */
   publication_id: string;
-  /** Subject line (also the post's working title). */
+  /** Subject line (also the post's working title). Always this value, even
+   *  when seeding from `template_id`: the template's own subject line is
+   *  never copied in. */
   subject: string;
   /**
-   * Seed the post from a published server template (see the `templates` tools).
-   * Provide this OR `html` — not both. `{{variables}}` are substituted.
+   * Seed the post from a published server template (see the `templates` tools),
+   * using its PUBLISHED version, not any unpublished edits saved since. Provide
+   * this OR `html`, not both. The `variables` you pass are filled in, in both
+   * the `{{key}}` and Visual Email Designer `{key}` forms. Everything else is
+   * left for the broadcast to fill per recipient: a declared variable you do
+   * not pass keeps its `fallback_value` for recipients with no value, and
+   * undeclared tokens like `{{contact.first_name}}` are left as they are. The
+   * post keeps the template's published page style; it is wrapped in that
+   * page, and its show-if blocks are decided per recipient, when it is sent. The template's preview text
+   * (preheader) is part of its rendered HTML, so it does reach the inbox, but
+   * the post's own preview text field stays empty.
    */
   template_id?: string;
-  /** Values substituted into the template's `{{variable}}` placeholders. */
+  /** Values substituted into the template's variable placeholders (both the
+   *  `{{key}}` and Visual Email Designer `{key}` forms). HTML-escaped; use
+   *  `{{{key}}}` in the template to insert raw HTML instead. */
   variables?: Record<string, string | number>;
   /** Inline HTML body (use this OR `template_id`). */
   html?: string;
   /** Inline plain-text body. */
   text?: string;
-  /** From header, e.g. `Acme <hello@acme.com>`. Must use a verified domain. */
+  /**
+   * From header, e.g. `Acme <hello@acme.com>`. Must be on one of the
+   * publication's verified sending domains, or the request is refused with a
+   * 422. A From on the built-in `*.mailtea.email` address is kept for test
+   * emails, but the post itself sends from the publication's default sender.
+   * Kept on the post and returned by `posts.get`.
+   */
   from?: string;
+  /** Reply-To address (a valid email, any domain). Replaces the sender's. */
   reply_to?: string;
-  /** Internal name/working title (defaults to `subject`). */
+  /**
+   * Internal name in Mailtea Studio. Never used as the subject: renaming a post
+   * never changes what subscribers see. Defaults to following `subject`.
+   */
   name?: string;
   /** `newsletter` (default, can publish to the site) or `broadcast` (email-only). */
   kind?: "newsletter" | "broadcast";
@@ -82,13 +118,22 @@ export interface PostListResponse {
   total: number;
 }
 
-/** Input for `posts.update` (draft posts only). */
+/**
+ * Input for `posts.update` (draft posts only). Only the fields you pass change.
+ */
 export interface UpdatePostInput {
+  /** The subject line subscribers see. */
   subject?: string;
   html?: string;
   text?: string;
+  /**
+   * From header, gated like `posts.create` (422 when the domain is not
+   * verified). `""` clears it, so the named sender or publication default decides.
+   */
   from?: string;
+  /** Reply-To address (a valid email). `""` clears it. */
   reply_to?: string;
+  /** Internal name. Never changes the subject. `""` clears it (follows the subject). */
   name?: string;
 }
 
