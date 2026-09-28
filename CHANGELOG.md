@@ -2,6 +2,19 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Added: `TemplateVersion.from`, `TemplateVersion.reply_to` and
+  `TemplateVersion.sender_recorded`. Template history now records the sender:
+  an update that changes only `from` or `reply_to` records a version (or folds
+  into the open one, like any edit), and `templates.restoreVersion` brings the
+  version's From and Reply-To back. `sender_recorded` says what a `null`
+  means. When it is true the version had no From or Reply-To, and restoring it
+  clears them. When it is false the version was recorded before this change,
+  and restoring it leaves the current From and Reply-To alone. The server
+  change reaches every SDK version on deploy; this release only adds the
+  fields to the type.
+
 ## 0.18.0 (2026-09-28)
 
 - Added: optimistic-concurrency tokens for editing over an API that may also

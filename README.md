@@ -66,7 +66,7 @@ export MAILTEA_API_BASE_URL="http://localhost:7787"
 | `domains.claims.create / get / verify / cancel` | Take a domain back from another publication when `create` is refused with `domain_held_elsewhere` |
 | `suppressions.list / add / remove / export` | Org-wide suppression list (`export` returns CSV text) |
 | `templates.render / create / list / get / update / publish / duplicate / delete` | Manage stored email templates (`render` previews a spec without saving) |
-| `templates.listVersions / restoreVersion` | Template version history (newest 50). A restore saves the older design as unpublished changes: a published template keeps sending its published version until you publish again |
+| `templates.listVersions / restoreVersion` | Template version history (newest 50). A restore saves the older design, with its From and Reply-To, as unpublished changes: a published template keeps sending its published version until you publish again |
 | `webhooks.create / list / get / update / delete` | Manage outbound event subscriptions |
 | `contactProperties.create / list / update / delete` | Manage custom contact fields (team-scoped) |
 | `apiKeys.create / list / revoke` | Manage API keys (`settings:write`). `create({ mode: "test" })` mints a test key |

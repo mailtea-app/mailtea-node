@@ -212,6 +212,18 @@ export interface TemplateVersion {
   restored_from_version: number | null;
   format: TemplateFormat;
   name: string;
+  /** The template's From as of this version. Null when it had none, and on a
+   *  version recorded before versions kept the sender (`sender_recorded` is
+   *  false). */
+  from: string | null;
+  /** The template's Reply-To as of this version. Null in the same cases as
+   *  `from`. */
+  reply_to: string | null;
+  /** Whether this version recorded its From and Reply-To. True: a null `from`
+   *  means it had none, and restoring it clears the template's From. False:
+   *  the version predates sender history, and restoring it leaves the
+   *  template's current From and Reply-To as they are. */
+  sender_recorded: boolean;
   /** Closed to further coalescing — no later edit can fold into it. */
   sealed: boolean;
   /** The entry that matches the working copy: the saved design you are
@@ -236,8 +248,8 @@ export interface TemplateVersion {
 export interface TemplateVersionRetention {
   /** Newest-N kept per template; older entries are pruned. */
   max_versions: number;
-  /** Consecutive edits by the same author inside this window collapse into a
-   *  single version. */
+  /** Consecutive edits by the same author through the same channel (Studio,
+   *  or one API key) inside this window collapse into a single version. */
   coalesce_window_seconds: number;
 }
 
@@ -381,8 +393,9 @@ export class Templates {
 
   /** List a template's version history, newest first (metadata only — no
    *  designs). Only the newest 50 versions are kept, and consecutive edits by
-   *  the same author within 10 minutes collapse into one entry; `retention` on
-   *  the response carries both numbers. */
+   *  the same author through the same channel (Studio, or one API key) within
+   *  10 minutes collapse into one entry; `retention` on the response carries
+   *  both numbers. */
   listVersions(
     id: string,
     params: ListTemplateVersionsParams
@@ -393,7 +406,9 @@ export class Templates {
     );
   }
 
-  /** Put an earlier design back.
+  /** Put an earlier design back, with its From and Reply-To. A version with
+   *  `sender_recorded: false` (recorded before versions kept the sender)
+   *  leaves the current From and Reply-To as they are.
    *
    *  **A restore no longer unpublishes the template.** It is a content write,
    *  and lands in the working copy: a published template keeps sending its

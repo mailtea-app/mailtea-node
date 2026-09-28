@@ -365,6 +365,9 @@ test("templates.listVersions GETs /v1/templates/:id/versions with limit, and ret
           restored_from_version: null,
           format: "editor",
           name: "Weekly digest",
+          from: "News <news@x.com>",
+          reply_to: null,
+          sender_recorded: true,
           sealed: true,
           is_current: true,
           is_published: false,
@@ -381,6 +384,11 @@ test("templates.listVersions GETs /v1/templates/:id/versions with limit, and ret
   // The working copy is not what is sending while there are unpublished changes.
   assert.equal(history.data[0]?.is_published, false);
   assert.equal(history.data[0]?.author?.id, "usr_1");
+  // Each version's sender, typed as the API sends it (null when it had none).
+  const sender: [string | null, string | null, boolean] | undefined = history.data[0]
+    ? [history.data[0].from, history.data[0].reply_to, history.data[0].sender_recorded]
+    : undefined;
+  assert.deepEqual(sender, ["News <news@x.com>", null, true]);
   assert.equal(history.retention.max_versions, 50);
   const call = requireCall(mock.calls, 0);
   assert.equal(call.method, "GET");
