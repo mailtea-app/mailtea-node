@@ -4,6 +4,17 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: optimistic-concurrency tokens for editing over an API that may also
+  be edited in Mailtea Studio or by another agent. `Template.revision` moves
+  on every content-changing write; pass it back as `base_revision` on
+  `templates.update` and `templates.publish` to get a 409 `stale_write`
+  (`current_revision` on the error) instead of silently overwriting someone
+  else's edit. `automations.update` takes `base_version` the same way for
+  graph writes (`steps`), answering 409 `stale_version`. `Post.updated_at` is
+  now returned by `posts.get`/`posts.list`/`posts.update`; pass it back as
+  `base_updated_at` on `posts.update` for a 409 `stale_write`
+  (`current_updated_at` on the error). Every token is optional: omit it for
+  today's unconditional write.
 - Added: `Post.from` and `Post.reply_to`, the From and Reply-To set on a post
   (`null` when the named sender or the publication default decides). The API
   now keeps the `from` and `reply_to` you pass to `posts.create` and

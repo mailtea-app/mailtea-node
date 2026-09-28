@@ -51,6 +51,12 @@ export interface Template {
   object: "template";
   id: string;
   publication_id: string;
+  /** Moves on every write that changes what the template sends (design,
+   *  subject, variables, text, from, reply_to, format). Unaffected by a
+   *  rename, a re-tag, publish or unpublish. Read it, then send it back as
+   *  `base_revision` on `update`/`publish` to guard against overwriting
+   *  someone else's edit. */
+  revision: number;
   name: string;
   description: string;
   html: string;
@@ -141,6 +147,11 @@ export interface CreateTemplateInput {
  *  `publication_id` is required (sent in the query string). */
 export interface UpdateTemplateInput {
   publication_id: string;
+  /** Read `template.revision`, then send it back here. If the template moved
+   *  on since, the write is refused with a 409 `stale_write` (`current_revision`
+   *  on the error body) and nothing is saved. Omit it for an unconditional
+   *  write. */
+  base_revision?: number;
   name?: string;
   html?: string;
   spec?: TemplateSpec;
@@ -319,11 +330,21 @@ export class Templates {
   /** Publish a template: its saved content, From and Reply-To included,
    *  becomes the version that sends, and a draft's `status` becomes
    *  `published`. On a template that is already published, this is how saved
-   *  changes go live. */
-  publish(id: string, params: { publication_id: string }): Promise<Template> {
+   *  changes go live.
+   *
+   *  Pass `base_revision` (read from `template.revision`) to require the
+   *  template still be at that revision; otherwise a 409 `stale_write` comes
+   *  back with `current_revision`, and nothing is published. Omit it for an
+   *  unconditional publish. */
+  publish(
+    id: string,
+    params: { publication_id: string; base_revision?: number }
+  ): Promise<Template> {
+    const { publication_id, base_revision } = params;
     return this.request<Template>(
       "POST",
-      `/v1/templates/${encodeURIComponent(id)}/publish${query({ ...params })}`
+      `/v1/templates/${encodeURIComponent(id)}/publish${query({ publication_id })}`,
+      base_revision === undefined ? undefined : { base_revision }
     );
   }
 

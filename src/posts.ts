@@ -27,6 +27,9 @@ export interface Post {
   html: string | null;
   text: string | null;
   created_at: string;
+  /** Read this, then send it back as `base_updated_at` on `posts.update` to
+   *  guard against overwriting someone else's edit. */
+  updated_at: string;
   scheduled_at: string | null;
   sent_at: string | null;
 }
@@ -122,6 +125,11 @@ export interface PostListResponse {
  * Input for `posts.update` (draft posts only). Only the fields you pass change.
  */
 export interface UpdatePostInput {
+  /** Read `post.updated_at`, then send it back here. If the post changed
+   *  since, the write is refused with a 409 `stale_write`
+   *  (`current_updated_at` on the error body) and nothing is saved. Omit it
+   *  for an unconditional write. */
+  base_updated_at?: string;
   /** The subject line subscribers see. */
   subject?: string;
   html?: string;
@@ -141,6 +149,7 @@ export interface UpdatePostInput {
 export interface UpdatePostResult {
   object: "post";
   id: string;
+  updated_at: string;
 }
 
 /** Result of `posts.create`. */

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Mailtea, type Post, type UpdatePostInput } from "./index.js";
+import { Mailtea, MailteaError, type Post, type UpdatePostInput } from "./index.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
 test("posts.sendTest POSTs /v1/posts/:id/test with recipients + from", async () => {
@@ -206,4 +206,46 @@ test("posts.update can clear name, from and reply_to with empty strings", async 
   const input: UpdatePostInput = { name: "", from: "", reply_to: "" };
   await mailtea.posts.update("iss_1", input);
   assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), { name: "", from: "", reply_to: "" });
+});
+
+test("posts.update sends base_updated_at in the body, and reads it back off the result", async () => {
+  const mock = createMockFetch({
+    json: { object: "post", id: "iss_1", updated_at: "2026-09-27T00:00:00.000Z" }
+  });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const result = await mailtea.posts.update("iss_1", {
+    subject: "New",
+    base_updated_at: "2026-09-01T00:00:00.000Z"
+  });
+  assert.equal(result.updated_at, "2026-09-27T00:00:00.000Z");
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    subject: "New",
+    base_updated_at: "2026-09-01T00:00:00.000Z"
+  });
+});
+
+test("posts.update surfaces a 409 stale_write as a MailteaError with the code readable", async () => {
+  const mock = createMockFetch({
+    status: 409,
+    json: {
+      error: "The post changed since you read it.",
+      code: "stale_write",
+      current_updated_at: "2026-09-27T00:00:00.000Z"
+    }
+  });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+
+  await assert.rejects(
+    () =>
+      mailtea.posts.update("iss_1", {
+        subject: "New",
+        base_updated_at: "2026-09-01T00:00:00.000Z"
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.status, 409);
+      assert.equal(err.code, "stale_write");
+      return true;
+    }
+  );
 });

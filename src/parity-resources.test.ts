@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Mailtea } from "./index.js";
+import { Mailtea, MailteaError } from "./index.js";
 import type { AutomationValidation } from "./automations.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
@@ -229,6 +229,41 @@ test("templates.update PATCHes with publication_id in the query", async () => {
   });
 });
 
+test("templates.update sends base_revision in the body, and the reply's revision is readable", async () => {
+  const { mailtea, mock } = client({ json: { object: "template", id: "etpl_1", revision: 4 } });
+  const updated = await mailtea.templates.update("etpl_1", {
+    publication_id: PUB,
+    base_revision: 3,
+    name: "Renamed"
+  });
+  assert.equal(updated.revision, 4);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    publication_id: PUB,
+    base_revision: 3,
+    name: "Renamed"
+  });
+});
+
+test("templates.update surfaces a 409 stale_write as a MailteaError with the code readable", async () => {
+  const { mailtea } = client({
+    status: 409,
+    json: {
+      error: "The template changed since you read it.",
+      code: "stale_write",
+      current_revision: 5
+    }
+  });
+  await assert.rejects(
+    () => mailtea.templates.update("etpl_1", { publication_id: PUB, base_revision: 3, name: "Renamed" }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.status, 409);
+      assert.equal(err.code, "stale_write");
+      return true;
+    }
+  );
+});
+
 // The PATCH reply is the template plus `unpublished` and, when the edit is not
 // live yet, `message`. Both are typed, so a caller can read them without a cast.
 test("templates.update returns the saved-but-not-published signal", async () => {
@@ -286,6 +321,36 @@ test("templates.publish/duplicate/delete target the right paths", async () => {
   const delCall = requireCall(mk3.calls, 0);
   assert.equal(delCall.method, "DELETE");
   assert.equal(delCall.url, "https://api.mailtea.app/v1/templates/etpl_1?publication_id=pub_123");
+});
+
+test("templates.publish sends base_revision as a JSON body only when given", async () => {
+  const { mailtea, mock } = client({ json: { object: "template", id: "etpl_1", status: "published" } });
+  await mailtea.templates.publish("etpl_1", { publication_id: PUB, base_revision: 7 });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  // publication_id stays in the query string exactly as an unconditional publish.
+  assert.equal(call.url, "https://api.mailtea.app/v1/templates/etpl_1/publish?publication_id=pub_123");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), { base_revision: 7 });
+});
+
+test("templates.publish surfaces a 409 stale_write as a MailteaError with the code readable", async () => {
+  const { mailtea } = client({
+    status: 409,
+    json: {
+      error: "The template changed since you read it.",
+      code: "stale_write",
+      current_revision: 8
+    }
+  });
+  await assert.rejects(
+    () => mailtea.templates.publish("etpl_1", { publication_id: PUB, base_revision: 3 }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.status, 409);
+      assert.equal(err.code, "stale_write");
+      return true;
+    }
+  );
 });
 
 test("templates.listVersions GETs /v1/templates/:id/versions with limit, and returns retention", async () => {
@@ -473,6 +538,46 @@ test("automations.update with validate_only narrows to the validation shape", as
     steps: [TRIGGER_STEP],
     validate_only: true
   });
+});
+
+test("automations.update sends base_version in the body, stripped of publication_id like the rest", async () => {
+  const { mailtea, mock } = client({ json: { object: "automation", id: "aut_1", version: 4 } });
+  await mailtea.automations.update("aut_1", {
+    publication_id: PUB,
+    base_version: 3,
+    steps: [TRIGGER_STEP]
+  });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/aut_1?publication_id=pub_123");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), {
+    base_version: 3,
+    steps: [TRIGGER_STEP]
+  });
+});
+
+test("automations.update surfaces a 409 stale_version as a MailteaError with the code readable", async () => {
+  const { mailtea } = client({
+    status: 409,
+    json: {
+      error: "The automation's graph changed since you read it.",
+      code: "stale_version",
+      current_version: 5
+    }
+  });
+  await assert.rejects(
+    () =>
+      mailtea.automations.update("aut_1", {
+        publication_id: PUB,
+        base_version: 3,
+        steps: [TRIGGER_STEP]
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof MailteaError);
+      assert.equal(err.status, 409);
+      assert.equal(err.code, "stale_version");
+      return true;
+    }
+  );
 });
 
 test("automations.delete DELETEs /v1/automations/:id with publication_id in the query", async () => {

@@ -300,6 +300,13 @@ export interface CreateAutomationInput {
  *  only ride along with `steps`. `publication_id` is sent in the query string. */
 export interface UpdateAutomationInput {
   publication_id: string;
+  /** Read `automation.version`, then send it back here. Only applies to graph
+   *  writes (when `steps` is sent); ignored on a patch without steps. If the
+   *  live version moved on and the sent `steps` differ from the live graph,
+   *  the write is refused with a 409 `stale_version` (`current_version` on the
+   *  error body) and nothing is saved; `steps` identical to the live graph are
+   *  accepted whatever the version. Omit it for an unconditional write. */
+  base_version?: number;
   name?: string;
   description?: string;
   steps?: AutomationStep[];
@@ -307,7 +314,8 @@ export interface UpdateAutomationInput {
   reentry_policy?: AutomationReentryPolicy;
   reentry_window_seconds?: number | null;
   on_step_failure?: AutomationStepFailureMode;
-  /** Dry run: returns an `AutomationValidation` and writes nothing. */
+  /** Dry run: returns an `AutomationValidation` and writes nothing. A stale
+   *  `base_version` also answers 409 here, before anything is validated. */
   validate_only?: boolean;
 }
 
