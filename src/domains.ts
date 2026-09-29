@@ -3,8 +3,11 @@ import { query } from "./resource.js";
 
 export type DomainStatus = "pending" | "verified";
 export type DomainPurpose = "email" | "site" | "both";
-/** DKIM verification state for an email-purpose domain. */
-export type DkimStatus = "pending" | "verified" | "failed";
+/**
+ * DKIM verification state for an email-purpose domain. `revoked` means Mailtea
+ * revoked the domain, and it can't send.
+ */
+export type DkimStatus = "pending" | "verified" | "failed" | "revoked";
 /** Whether a domain is registered to RECEIVE mail at Mailtea's inbound endpoint. */
 export type ReceivingIdentityStatus = "pending" | "verified" | "failed";
 

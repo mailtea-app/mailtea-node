@@ -2,8 +2,12 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+## 0.19.0 (2026-09-29)
 
+- Changed: `DkimStatus` includes `"revoked"`, which the API already returns in
+  `dkim_status` for a domain Mailtea revoked after abuse. Such a domain can't
+  send, and saving or re-adding it keeps it revoked. Code that switches over
+  `DkimStatus` without a default should handle the new value.
 - Added: `TemplateVersion.from`, `TemplateVersion.reply_to` and
   `TemplateVersion.sender_recorded`. Template history now records the sender:
   an update that changes only `from` or `reply_to` records a version (or folds
