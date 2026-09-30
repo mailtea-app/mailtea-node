@@ -2,6 +2,25 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Added: `Post.segment_id`, `CreatePostInput.segment_id` and
+  `UpdatePostInput.segment_id` (`null` clears it). A post with a segment goes
+  to that segment's active contacts instead of all active contacts; the
+  segment must be in the post's publication, or the request is refused with a
+  422. The segment is resolved when the post is sent, and a send to a segment
+  that cannot be resolved or matches nobody is refused rather than widened to
+  the whole list. A segment that a draft, scheduled or sending post targets
+  cannot be deleted: `segments.delete` fails with a 409 `segment_in_use`, so
+  point those posts at another segment or clear their `segment_id` first. Deleting one used to send those posts to everyone.
+- Added: `Segment.inactive_days`, `CreateSegmentInput.inactive_days` and
+  `UpdateSegmentInput.inactive_days` (`null` clears it): contacts with no open
+  or click in the last N days (1 to 3650), counting contacts who never
+  engaged. It selects the silent cohort, not engaged readers. Engagement
+  tracking is not backfilled, so contacts with no recorded engagement count
+  as inactive. Both need the API deployed with this change; this release adds
+  the fields to the types.
+
 ## 0.19.0 (2026-09-29)
 
 - Changed: `DkimStatus` includes `"revoked"`, which the API already returns in

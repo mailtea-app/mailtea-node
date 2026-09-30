@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Mailtea, MailteaError, type Post, type UpdatePostInput } from "./index.js";
+import { Mailtea, MailteaError, type CreatePostInput, type Post, type UpdatePostInput } from "./index.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
 test("posts.sendTest POSTs /v1/posts/:id/test with recipients + from", async () => {
@@ -248,4 +248,56 @@ test("posts.update surfaces a 409 stale_write as a MailteaError with the code re
       return true;
     }
   );
+});
+
+// Targeting a post at one audience segment. Typed through the SDK's own
+// interfaces, so `pnpm typecheck` fails if the field goes missing from them.
+test("posts.create sends segment_id", async () => {
+  const mock = createMockFetch({ json: { id: "iss_4" } });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const input: CreatePostInput = { publication_id: "pub_1", subject: "S", html: "<p>x</p>", segment_id: "seg_1" };
+  await mailtea.posts.create(input);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    publication_id: "pub_1",
+    subject: "S",
+    html: "<p>x</p>",
+    segment_id: "seg_1"
+  });
+});
+
+test("posts.update sends segment_id, and null clears it", async () => {
+  const mock = createMockFetch({ json: { object: "post", id: "iss_1" } });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const set: UpdatePostInput = { segment_id: "seg_1" };
+  const clear: UpdatePostInput = { segment_id: null };
+  await mailtea.posts.update("iss_1", set);
+  await mailtea.posts.update("iss_1", clear);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), { segment_id: "seg_1" });
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 1).body ?? "null"), { segment_id: null });
+});
+
+test("posts.get returns segment_id, null when the post goes to all active contacts", async () => {
+  const mock = createMockFetch({
+    json: {
+      object: "post",
+      id: "iss_1",
+      publication_id: "pub_1",
+      name: "Win back",
+      subject: "Win back",
+      from: null,
+      reply_to: null,
+      segment_id: "seg_1",
+      status: "draft",
+      html: null,
+      text: null,
+      created_at: "2026-09-29T00:00:00.000Z",
+      updated_at: "2026-09-29T00:00:00.000Z",
+      scheduled_at: null,
+      sent_at: null
+    }
+  });
+  const mailtea = new Mailtea("mt_pat_test", { fetch: mock.fetch });
+  const post: Post = await mailtea.posts.get("iss_1");
+  const segmentId: string | null = post.segment_id;
+  assert.equal(segmentId, "seg_1");
 });

@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Mailtea } from "./index.js";
+import {
+  Mailtea,
+  type CreateSegmentInput,
+  type Segment,
+  type UpdateSegmentInput
+} from "./index.js";
 import { createMockFetch, requireCall } from "./test-utils.js";
 
 function client(spec: Parameters<typeof createMockFetch>[0]) {
@@ -94,6 +99,50 @@ test("segments.create and update hit /v1/segments", async () => {
   assert.equal(upd.method, "PATCH");
   assert.match(upd.url, /\/v1\/segments\/sg_1\?publication_id=pub_123/);
   assert.deepEqual(JSON.parse(upd.body ?? "null"), { publication_id: PUB, name: "Renamed" });
+});
+
+// The inactivity filter: contacts with no open or click in the last N days.
+// Typed through the SDK's own interfaces, so `pnpm typecheck` fails if the
+// field goes missing from them.
+test("segments.create sends inactive_days", async () => {
+  const { mailtea, mock } = client({ json: { object: "segment", id: "sg_1", inactive_days: 90 } });
+  const input: CreateSegmentInput = { publication_id: PUB, name: "Silent 90", inactive_days: 90 };
+  await mailtea.segments.create(input);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    publication_id: PUB,
+    name: "Silent 90",
+    inactive_days: 90
+  });
+});
+
+test("segments.update sends inactive_days, and null clears it", async () => {
+  const { mailtea, mock } = client({ json: { object: "segment", id: "sg_1" } });
+  const set: UpdateSegmentInput = { publication_id: PUB, inactive_days: 30 };
+  const clear: UpdateSegmentInput = { publication_id: PUB, inactive_days: null };
+  await mailtea.segments.update("sg_1", set);
+  await mailtea.segments.update("sg_1", clear);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), { publication_id: PUB, inactive_days: 30 });
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 1).body ?? "null"), { publication_id: PUB, inactive_days: null });
+});
+
+test("segments.get returns inactive_days, null when the segment has no inactivity filter", async () => {
+  const { mailtea } = client({
+    json: {
+      object: "segment",
+      id: "sg_1",
+      publication_id: PUB,
+      name: "Silent 90",
+      description: "",
+      status_filter: null,
+      query_filter: null,
+      inactive_days: 90,
+      created_at: "2026-09-29T00:00:00.000Z",
+      updated_at: "2026-09-29T00:00:00.000Z"
+    }
+  });
+  const segment: Segment = await mailtea.segments.get("sg_1", { publication_id: PUB });
+  const days: number | null = segment.inactive_days;
+  assert.equal(days, 90);
 });
 
 // --- topics -----------------------------------------------------------------

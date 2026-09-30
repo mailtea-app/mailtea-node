@@ -23,6 +23,8 @@ export interface Post {
   from: string | null;
   /** The Reply-To set on this post, or `null` when the sender's applies. */
   reply_to: string | null;
+  /** The audience segment this post goes to, or `null` for all active contacts. */
+  segment_id: string | null;
   status: PostStatus;
   html: string | null;
   text: string | null;
@@ -100,6 +102,14 @@ export interface CreatePostInput {
   name?: string;
   /** `newsletter` (default, can publish to the site) or `broadcast` (email-only). */
   kind?: "newsletter" | "broadcast";
+  /**
+   * Send the post to one audience segment (see `segments.list`) instead of all
+   * active contacts. It must be a segment in the post's publication, or the
+   * request is refused with a 422. The segment picks the recipients when the
+   * post is sent: a filter segment (`status_filter`, `query_filter` or
+   * `inactive_days`) is resolved then.
+   */
+  segment_id?: string;
   /** Send right after creating (requires the `issues:send` scope). */
   send?: boolean;
   /** ISO-8601; with `send`, schedules the send instead of sending now. */
@@ -143,6 +153,11 @@ export interface UpdatePostInput {
   reply_to?: string;
   /** Internal name. Never changes the subject. `""` clears it (follows the subject). */
   name?: string;
+  /**
+   * The audience segment, as on `posts.create`. `null` clears it so the post
+   * goes to all active contacts; omit it to leave it unchanged.
+   */
+  segment_id?: string | null;
 }
 
 /** Result of `posts.update`. */

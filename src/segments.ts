@@ -10,6 +10,11 @@ export interface Segment {
   description: string;
   status_filter: ContactStatus | null;
   query_filter: string | null;
+  /**
+   * The inactivity filter: contacts with no open or click in the last N days,
+   * or `null` when the segment has none. See `CreateSegmentInput.inactive_days`.
+   */
+  inactive_days: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +25,17 @@ export interface CreateSegmentInput {
   description?: string;
   status_filter?: ContactStatus;
   query_filter?: string;
+  /**
+   * Select contacts with no open or click in the last N days (an integer, 1 to
+   * 3650). A contact who never engaged counts as inactive, so this finds the
+   * silent cohort for a sunset or re-engagement send; it is not an "engaged
+   * readers" filter. Engagement tracking is not backfilled, so contacts with
+   * no recorded engagement count as inactive, including some who opened or
+   * clicked before tracking began. Setting it makes the
+   * segment a filter segment; with `status_filter` or `query_filter`, a contact
+   * must match all of them.
+   */
+  inactive_days?: number;
 }
 
 export interface UpdateSegmentInput {
@@ -28,6 +44,9 @@ export interface UpdateSegmentInput {
   description?: string;
   status_filter?: ContactStatus | null;
   query_filter?: string | null;
+  /** See `CreateSegmentInput.inactive_days`. `null` clears it; omit it to leave
+   *  it unchanged. A segment with contacts added to it cannot take a filter. */
+  inactive_days?: number | null;
 }
 
 export interface ListSegmentsParams {
@@ -72,7 +91,12 @@ export class Segments {
     );
   }
 
-  /** Delete a segment. */
+  /**
+   * Delete a segment. A segment that a draft, scheduled or sending post
+   * targets cannot be deleted: it fails with a 409 `MailteaError` (`code`
+   * `segment_in_use`) and nothing is deleted. Point those posts at another
+   * segment, or set their `segment_id` to `null`, first.
+   */
   delete(
     id: string,
     params: { publication_id: string }
