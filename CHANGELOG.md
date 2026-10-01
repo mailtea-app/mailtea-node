@@ -2,7 +2,7 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+## 0.20.0 (2026-10-01)
 
 - Changed (API): `contacts.list({ search })` with several whole addresses
   separated by commas, spaces or line breaks now returns exactly those
