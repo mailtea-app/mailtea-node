@@ -58,6 +58,7 @@ export type DomainRefusalCode =
   | "tracking_subdomain_invalid"
   | "domain_held_elsewhere"
   | "domain_released"
+  | "domain_managed"
   | "already_owned"
   | "nothing_to_claim"
   | "claim_pending"
@@ -337,6 +338,8 @@ export interface DomainClaim {
   publication_id: string;
   name: string;
   region: DomainRegion;
+  /** What the domain this claim produces is for. `"email"` on claims opened before purpose existed. */
+  purpose: DomainPurpose;
   status: DomainClaimStatus;
   /** The single TXT record to publish, then `verify()`. */
   records: DomainRecord[];
@@ -364,6 +367,11 @@ export interface CreateDomainClaimInput {
   name: string;
   /** Where the claimed domain will send from. Defaults to the default region. */
   region?: DomainRegion;
+  /**
+   * What the claimed domain is for, the same values as on `domains.create`.
+   * Defaults to `"email"`. A `"site"` claim gets no sending identity.
+   */
+  purpose?: DomainPurpose;
 }
 
 /**

@@ -41,6 +41,23 @@ test("domains.claims.create POSTs /v1/domains/claim with the body", async () => 
   });
 });
 
+test("domains.claims.create forwards purpose and the claim reports it", async () => {
+  const { mailtea, mock } = client({
+    json: { object: "domain_claim", id: "clm_1", purpose: "site" }
+  });
+  const claim = await mailtea.domains.claims.create({
+    publication_id: PUB,
+    name: "acme.com",
+    purpose: "site"
+  });
+  assert.equal(claim.purpose, "site");
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), {
+    publication_id: PUB,
+    name: "acme.com",
+    purpose: "site"
+  });
+});
+
 test("domains.claims.create sends no region when none is given", async () => {
   const { mailtea, mock } = client({ json: { object: "domain_claim", id: "clm_1" } });
   await mailtea.domains.claims.create({ publication_id: PUB, name: "acme.com" });

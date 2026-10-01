@@ -4,6 +4,20 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Changed (API): `contacts.list({ search })` with several whole addresses
+  separated by commas, spaces or line breaks now returns exactly those
+  contacts (up to 200), the same as Mailtea Studio and MCP. A list with an
+  entry that is not a whole address is refused with a 400 naming it. Part of
+  an address still matches as before. The `search` field documents this.
+- Added: `"domain_managed"` to `DomainRefusalCode`. `domains.update` on the
+  Mailtea-managed domain (`<slug>.mailtea.email`) is now refused with it (400)
+  instead of changing a domain Mailtea runs. Needs the API deployed with this
+  change.
+- Added: `CreateDomainClaimInput.purpose` (`"email"`, `"site"` or `"both"`,
+  default `"email"`) and `DomainClaim.purpose`. A claim now creates the domain
+  with that purpose, so a website-only domain no longer needs a `domains.update`
+  afterwards, and a `"site"` claim gets no sending identity. Claims opened
+  before this change report `"email"`. Needs the API deployed with this change.
 - Added: `Post.segment_id`, `CreatePostInput.segment_id` and
   `UpdatePostInput.segment_id` (`null` clears it). A post with a segment goes
   to that segment's active contacts instead of all active contacts; the

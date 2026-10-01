@@ -29,6 +29,12 @@ export interface ListContactsParams {
   limit?: number;
   after?: string;
   status?: ContactStatus;
+  /**
+   * Part of an email address, matched anywhere in it. Or several whole
+   * addresses separated by commas, spaces or line breaks, to list exactly
+   * those contacts (up to 200). A list with an entry that is not a whole
+   * address is refused with a 400 naming it.
+   */
   search?: string;
 }
 
