@@ -2,6 +2,18 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Changed (API): `posts.send`, and `posts.create` with `send: true`, now fail
+  with a 403 `system_domain_recipient_restricted` (with `restriction`) when
+  the team has no verified sending domain and the audience includes anyone
+  outside the team, or the post sends from the built-in `*.mailtea.email`
+  address. Nothing is sent or scheduled and the post stays a draft; on
+  `posts.create` the error body carries the draft's `id`. The send used to be
+  accepted and fail a moment later. A broadcast (`kind: "broadcast"`) is never
+  published to the website, however it is sent. No package change: this is
+  the API's behaviour once it is deployed.
+
 ## 0.20.0 (2026-10-01)
 
 - Changed (API): `contacts.list({ search })` with several whole addresses
