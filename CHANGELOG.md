@@ -2,7 +2,7 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+## 0.21.0 (2026-10-03)
 
 - Changed (API): `posts.send`, and `posts.create` with `send: true`, now fail
   with a 403 `system_domain_recipient_restricted` (with `restriction`) when
