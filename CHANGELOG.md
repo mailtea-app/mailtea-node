@@ -2,7 +2,7 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+## 0.22.0 (2026-10-14)
 
 - Changed (API): `posts.send`, and `posts.create` with `send: true`, send to
   the whole audience. They used to stop at 10,000 recipients without saying
