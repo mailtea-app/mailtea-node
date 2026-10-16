@@ -77,3 +77,46 @@ test("emails.inbound.attachments.get GETs the nested attachment path and returns
   assert.equal(call.url, "https://api.mailtea.app/v1/emails/inbound/rxemail_1/attachments/rxatt_1");
   assert.equal(call.body, null);
 });
+
+test("emails.inbound.reply sends files as given", async () => {
+  const { mailtea, mock } = client({ status: 202, json: { id: "txemail_9", status: "queued" } });
+  const input = {
+    text: "Attached.",
+    attachments: [{ filename: "a.pdf", content: "JVBERi0=", content_type: "application/pdf" }]
+  };
+  const res = await mailtea.emails.inbound.reply(RX, input);
+  assert.deepEqual(res, { id: "txemail_9", status: "queued" });
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), input);
+});
+
+test("emails.inbound.get and list type the arrival checks and attachments_withheld", async () => {
+  const { mailtea } = client({
+    json: {
+      object: "email", id: RX, spam_verdict: "PASS", virus_verdict: "FAIL", spf_verdict: "PASS",
+      dkim_verdict: "PASS", dmarc_verdict: "PASS", attachments_withheld: true, attachments: []
+    }
+  });
+  const email = await mailtea.emails.inbound.get(RX);
+  const checks: Array<string | null> = [email.spam_verdict, email.virus_verdict, email.spf_verdict, email.dkim_verdict, email.dmarc_verdict];
+  const withheld: boolean = email.attachments_withheld;
+  assert.deepEqual(checks, ["PASS", "FAIL", "PASS", "PASS", "PASS"]);
+  assert.equal(withheld, true);
+
+  const { mailtea: listing } = client({
+    json: { object: "list", data: [{ id: RX, spam_verdict: null, virus_verdict: null, attachments_withheld: false }], has_more: false }
+  });
+  const first = (await listing.emails.inbound.list({ publication_id: PUB })).data[0]!;
+  const row: [string | null, string | null, boolean] = [first.spam_verdict, first.virus_verdict, first.attachments_withheld];
+  assert.deepEqual(row, [null, null, false]);
+});
+
+test("emails.inbound.reply forwards to and headers", async () => {
+  const { mailtea, mock } = client({ status: 202, json: { id: "txemail_9", status: "queued" } });
+  const input = {
+    text: "We got your message.",
+    to: "reader@ext.example",
+    headers: { "Auto-Submitted": "auto-replied", "X-Auto-Response-Suppress": "All" }
+  };
+  await mailtea.emails.inbound.reply(RX, input);
+  assert.deepEqual(JSON.parse(requireCall(mock.calls, 0).body ?? "null"), input);
+});

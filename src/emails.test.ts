@@ -297,3 +297,21 @@ test("captures x-request-id from the response headers", async () => {
     }
   );
 });
+
+test("emails.get carries message_id", async () => {
+  const { mailtea } = client({ json: { object: "email", id: "email_1", last_event: "sent", message_id: "<a@mail.example>" } });
+  const email = await mailtea.emails.get("email_1");
+  const messageId: string | null = email.message_id;
+  assert.equal(messageId, "<a@mail.example>");
+});
+
+test("a plan-limit refusal on a reply exposes its reason", async () => {
+  const { mailtea } = client({
+    status: 403,
+    json: { error: "Daily send limit reached (100/day on the free plan).", reason: "daily_cap", code: "daily_cap" }
+  });
+  await assert.rejects(
+    () => mailtea.emails.inbound.reply("rxemail_1", { text: "x" }),
+    (error: unknown) => error instanceof MailteaError && error.status === 403 && error.reason === "daily_cap"
+  );
+});

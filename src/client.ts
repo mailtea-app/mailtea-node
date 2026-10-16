@@ -93,7 +93,7 @@ export class Mailtea {
   readonly webhooks: Webhooks;
   /** The `contactProperties` resource: create, list, update, delete. */
   readonly contactProperties: ContactProperties;
-  /** The `apiKeys` resource: create, list, revoke. */
+  /** The `apiKeys` resource: create, list, current, revoke. */
   readonly apiKeys: ApiKeys;
   /** The `automations` resource: validate, create, list, get, update, delete,
    *  activate, pause, archive, listVersions, getVersion, metrics, test. */

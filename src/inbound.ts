@@ -7,6 +7,14 @@ import { query } from "./resource.js";
 // additionally stays in parity with `@mailtea/contracts` (enforced at typecheck
 // in `contracts-parity.test.ts`).
 
+/**
+ * A check run on an inbound email when it arrived, as the checker reported it:
+ * `PASS`, `FAIL`, `GRAY`, `PROCESSING_FAILED` or `DISABLED` today. A new value
+ * may appear, so treat anything but `PASS` as "not confirmed". Null where the
+ * route the email came in by does not run the check.
+ */
+export type InboundVerdict = string | null;
+
 /** A lightweight inbound-email row returned by `emails.inbound.list` (no body/attachments). */
 export interface InboundEmailListItem {
   /** Inbound email id (`rxemail_…`). */
@@ -15,9 +23,16 @@ export interface InboundEmailListItem {
   to: string[];
   cc: string[];
   bcc: string[];
+  /** The address(es) the sender asked replies to go to. A reply goes to the first one by default. */
   reply_to: string[];
   subject: string;
   message_id: string | null;
+  /** The spam check. */
+  spam_verdict: InboundVerdict;
+  /** The virus check. A `FAIL` means the attachments were withheld. */
+  virus_verdict: InboundVerdict;
+  /** True when Mailtea deliberately did not store this email's attachments (today: a failed virus check). */
+  attachments_withheld: boolean;
   created_at: string;
 }
 
@@ -41,6 +56,7 @@ export interface RetrievedInboundEmail {
   to: string[];
   cc: string[];
   bcc: string[];
+  /** The address(es) the sender asked replies to go to. A reply goes to the first one by default. */
   reply_to: string[];
   subject: string;
   message_id: string | null;
@@ -49,6 +65,18 @@ export interface RetrievedInboundEmail {
   html: string | null;
   text: string | null;
   headers: Record<string, string> | null;
+  /** The spam check. */
+  spam_verdict: InboundVerdict;
+  /** The virus check. A `FAIL` means the attachments were withheld. */
+  virus_verdict: InboundVerdict;
+  /** Whether the sending server was allowed to send for the From domain (SPF). */
+  spf_verdict: InboundVerdict;
+  /** Whether the message carried a valid signature for its domain (DKIM). */
+  dkim_verdict: InboundVerdict;
+  /** Whether the From domain's policy passed (DMARC). The strongest sign the From is genuine. */
+  dmarc_verdict: InboundVerdict;
+  /** True when Mailtea deliberately did not store this email's attachments (today: a failed virus check). */
+  attachments_withheld: boolean;
   created_at: string;
   /** Short-lived signed URL to download the raw RFC 822 message. */
   raw: { download_url: string; expires_at: string };
@@ -81,21 +109,55 @@ export interface ListInboundEmailsParams {
   cursor?: string;
 }
 
+/** A file on a reply. The same shape as a file on `emails.send`. */
+export interface InboundReplyAttachment {
+  /** The name the recipient sees. No `/`, `\` or control characters. */
+  filename: string;
+  /** The file, base64. */
+  content: string;
+  /** Defaults to `application/octet-stream`. */
+  content_type?: string;
+  /** Set it, and reference `cid:<content_id>` in the HTML, to show an image inline. */
+  content_id?: string;
+}
+
 /**
  * Input for `emails.inbound.reply`. Provide at least one of `html`/`text`.
  *
- * Threading (In-Reply-To / References), the reply target (To), and the `Re: `
- * subject default are all derived by the server from the original inbound email
- * — they are never accepted from the caller. Omit `from` to send from the
- * verified email-purpose domain the mail was delivered to.
+ * Threading (In-Reply-To / References) and the `Re: ` subject default are
+ * derived by the server from the original inbound email. The reply goes to the
+ * original's Reply-To when it is exactly one valid address, else its From when
+ * that is exactly one valid address, else the request is refused (422
+ * `no_reply_target`); `to` may name only the From or a single-address Reply-To
+ * entry (else 422 `reply_target_not_allowed`). Omit `from` to send from the verified
+ * email-purpose domain the mail was delivered to.
  */
 export interface InboundReplyInput {
   from?: { email: string; name?: string };
   subject?: string;
   html?: string;
   text?: string;
+  /**
+   * Who the reply goes to: the original's From and/or Reply-To addresses
+   * (compared without case or display name), as a string or a list. Anything
+   * else is refused with 422 `reply_target_not_allowed`.
+   */
+  to?: string | string[];
   cc?: string[];
   bcc?: string[];
+  /**
+   * Up to 20 files, weighing at most 6 MiB together once decoded. The whole
+   * message (files, bodies and headers) must also build under the provider's
+   * limit, or the reply is refused (400 on the raw body, 422 `message_too_large`
+   * once the HTML is cleaned).
+   */
+  attachments?: InboundReplyAttachment[];
+  /**
+   * Only `Auto-Submitted` and `X-Auto-Response-Suppress` (any case, one line
+   * each), for a reply a program sends, such as an automatic acknowledgement.
+   * Anything else is refused with 400.
+   */
+  headers?: Record<string, string>;
   idempotency_key?: string;
 }
 
@@ -103,6 +165,12 @@ export interface InboundReplyInput {
 export interface InboundReplyResponse {
   /** Transactional email id (`txemail_…`). */
   id: string;
+  /**
+   * `queued` on a first answer. A retry with the same idempotency key answers
+   * with the reply's status now: 202 while it is queued, 200 once sent. If the
+   * reply failed, the retry throws a `MailteaError` (409, `code`
+   * `reply_failed`), and the same idempotency key then makes a fresh reply.
+   */
   status: string;
 }
 

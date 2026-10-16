@@ -178,6 +178,12 @@ export interface RetrievedEmail {
    */
   mode: EmailMode;
   /**
+   * The Message-ID header recipients see, in angle brackets. Null until the
+   * email is sent (queued, scheduled, test mode, or failed before sending).
+   * Also on every transactional lifecycle webhook.
+   */
+  message_id: string | null;
+  /**
    * Why the send failed, when it did. Neutral copy — the provider's own wording
    * is never returned. `null` on every email that has not failed.
    */

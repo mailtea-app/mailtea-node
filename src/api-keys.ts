@@ -37,6 +37,34 @@ export interface ApiKeyListItem {
   created_at: string;
 }
 
+/** What the calling key is for, from `apiKeys.current()`. */
+export interface CurrentApiKey {
+  object: "api_key";
+  id: string;
+  /** `live` or `test`. */
+  mode: EmailMode;
+  scopes: string[];
+  team: { id: string; name: string | null };
+  /** Null for a key that reaches the whole team rather than one publication. */
+  publication: {
+    id: string;
+    name: string;
+    /** The Mailtea-managed `{slug}.mailtea.email` receiving domain, or null. */
+    receiving_domain: string | null;
+  } | null;
+  /**
+   * Hard limits, the ones a send is refused at; null means the plan has none.
+   * `ramp` is the new-team daily limit while it lasts (first week by default).
+   */
+  plan: {
+    key: string;
+    name: string;
+    daily_limit: number | null;
+    monthly_limit: number | null;
+    ramp: { daily_limit: number; ends_at: string } | null;
+  };
+}
+
 /**
  * The `apiKeys` resource. Access via `mailtea.apiKeys`. Requires a token with
  * `settings:write`; a key can never be granted scopes the calling token does
@@ -56,6 +84,15 @@ export class ApiKeys {
   /** List API keys (token values are never returned). */
   list(): Promise<{ data: ApiKeyListItem[] }> {
     return this.request<{ data: ApiKeyListItem[] }>("GET", "/v1/api-keys");
+  }
+
+  /**
+   * Describe the key making the request: its team, its publication and that
+   * publication's receiving domain, its scopes, its mode and the plan limits.
+   * Any key may call it; no scope is needed.
+   */
+  current(): Promise<CurrentApiKey> {
+    return this.request<CurrentApiKey>("GET", "/v1/api-keys/current");
   }
 
   /** Revoke (delete) an API key by id. */

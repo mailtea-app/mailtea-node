@@ -2,6 +2,17 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## 0.23.0 (2026-10-16)
+
+- Added: `emails.inbound.reply` takes `to` (a string or a list: the original's From and/or Reply-To addresses) and `headers` (only `Auto-Submitted` and `X-Auto-Response-Suppress`).
+- Changed (API): before this release a reply's `to` and `headers` were dropped without a word. Now a `to` naming anyone the original did not carry is a 422 `reply_target_not_allowed`, and any other header is a 400. Check any code that already passed either.
+- Changed (API): a plan-limit refusal on a send or a reply carries `reason` and `code` (`daily_cap`, `monthly_cap`, `ramp_cap`), readable as `MailteaError.reason`. A retried send or reply that was already accepted is answered with it, even at the limit.
+- Added: `emails.inbound.reply` takes `attachments`, the same shape as a send's (up to 20 files, 6 MiB together, and the whole reply must build under the provider's limit).
+- Added: `message_id` on `emails.get`: the Message-ID header recipients see, null until the email is sent.
+- Added: inbound email types carry `spam_verdict`, `virus_verdict`, `spf_verdict`, `dkim_verdict`, `dmarc_verdict` and `attachments_withheld` (the list carries the first two and the last). The API already returned them.
+- Added: `apiKeys.current()` describes the calling key: team, publication and receiving domain, scopes, mode, plan limits and the new-team limit.
+- Changed (API): a reply that is stored but never handed over no longer replays as a success on retry; a retry answers with the reply's real status. No package change.
+
 ## 0.22.0 (2026-10-14)
 
 - Changed (API): `posts.send`, and `posts.create` with `send: true`, send to

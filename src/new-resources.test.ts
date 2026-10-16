@@ -152,3 +152,24 @@ test("apiKeys.revoke DELETEs /v1/api-keys/:id and tolerates an empty 200 body", 
   assert.equal(call.method, "DELETE");
   assert.equal(call.url, "https://api.mailtea.app/v1/api-keys/tok_1");
 });
+
+test("apiKeys.current GETs /v1/api-keys/current", async () => {
+  const body = {
+    object: "api_key",
+    id: "tok_1",
+    mode: "live",
+    scopes: ["issues:read", "issues:send"],
+    team: { id: "org_1", name: "Acme" },
+    publication: { id: "pub_1", name: "Support", receiving_domain: "calm-harbor.mailtea.email" },
+    plan: { key: "free", name: "Free", daily_limit: 100, monthly_limit: 3000, ramp: { daily_limit: 1000, ends_at: "2026-10-22T09:00:00.000Z" } }
+  };
+  const { mailtea, mock } = client({ json: body });
+  const key = await mailtea.apiKeys.current();
+  assert.deepEqual(key, body);
+  const rampLimit: number | undefined = key.plan.ramp?.daily_limit;
+  assert.equal(rampLimit, 1000);
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "GET");
+  assert.equal(call.url, "https://api.mailtea.app/v1/api-keys/current");
+  assert.equal(call.body, null);
+});
