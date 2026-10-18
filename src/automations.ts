@@ -280,6 +280,99 @@ export interface ValidateAutomationInput {
   connections?: AutomationConnection[];
 }
 
+/** A `send_email` variable value: a literal string, or a mapping read from the
+ *  run at send time (`event.properties.*`, `contact.*`, `contact.properties.*`,
+ *  `steps.*`) with an optional fallback. */
+export type AutomationPreviewVariable = string | { var: string; default?: string };
+
+/** One branch of a `send_email` step's `config.variants` (max 10, evaluated in
+ *  order, first match wins, else the step's own template/subject/variables).
+ *  `when` is the condition step's `config.rule` DSL. A variant's `variables`
+ *  REPLACES the default mapping when present and inherits it when absent;
+ *  `subject` overrides when present. Validation: `too_many_variants`, `invalid_variant_key`, `duplicate_variant_key`;
+ *  issue paths are `config.variants[i].template_id` / `.when…`. */
+export interface SendEmailVariant {
+  /** Unique within the step, `^[a-z0-9_-]{1,64}$`. */
+  key: string;
+  /** Display name, max 80 chars. */
+  label?: string;
+  when: Record<string, unknown>;
+  template_id: string;
+  subject?: string;
+  variables?: Record<string, AutomationPreviewVariable>;
+}
+
+/** Preview what a `send_email` step would send. Nothing is sent. */
+export interface PreviewAutomationStepInput {
+  publication_id: string;
+  step: {
+    type: "send_email";
+    config: {
+      template_id: string;
+      subject?: string;
+      variables?: Record<string, AutomationPreviewVariable>;
+      variants?: SendEmailVariant[];
+    };
+  };
+  /** Omit to preview what a real send picks. A key forces that variant. `null`
+   *  forces the step's own (default) template; it is sent as JSON null, so do
+   *  not pass `undefined` for it. */
+  variant?: string | null;
+  /** Resolve `contact.*` mappings against this contact. Needs the
+   *  `contacts:read` scope as well (403 otherwise). The route also needs
+   *  `templates:read` (403 `insufficient_scope`). A missing contact is a 404
+   *  `contact_not_found`. */
+  contact_id?: string;
+  /** The automation's trigger step. `type` is its `trigger_type`; `key` is the
+   *  trigger STEP's key in the graph (what `steps.<key>.event` refs use), not an
+   *  event name. Lets the preview seed `steps.<key>.event` like a real run. */
+  trigger?: { type: string; key?: string };
+  /** The sample event that `event.properties.*` mappings read. */
+  event?: { name: string; properties?: Record<string, unknown> };
+}
+
+export type AutomationPreviewVariableSource =
+  | "event"
+  | "contact"
+  | "steps"
+  | "literal"
+  | "default"
+  | "missing";
+
+/** Open set: new codes may be added. `key` is present only on the three
+ *  variable codes. `subject_empty` means no subject anywhere or one that renders empty (a
+ *  real send would 422) and `subject` comes back `""`; `variable_unresolved`
+ *  can carry `source: "default"` when a fallback filled a path that was not found; `contact_not_active` means the contact is
+ *  unsubscribed or suppressed, so a real run would not email them; `variant_rule_needs_run` means a variant's rule reads run state the preview lacks, so it was not evaluated (force it with `variant`). */
+export type AutomationPreviewWarningCode =
+  | "variable_unresolved"
+  | "variable_unmapped"
+  | "mapping_unused"
+  | "subject_empty"
+  | "contact_not_active"
+  | "variant_rule_needs_run"
+  | (string & {});
+
+/** The rendered `send_email` step: the published template with the worker's own
+ *  variable resolution. `source: "missing"` or any warning means fix the
+ *  mapping before enabling the automation. */
+export interface AutomationStepPreview {
+  object: "automation_step_preview";
+  template_id: string;
+  template_version: "published";
+  subject: string;
+  html: string;
+  text: string;
+  variables: Record<string, { value: string; source: AutomationPreviewVariableSource }>;
+  warnings: Array<{ code: AutomationPreviewWarningCode; key?: string; message: string }>;
+  /** `matched` is the variant the automation would really pick for this
+   *  contact and event (null means the step's default). `forced` is true when
+   *  the request named a variant, so the email shown is that one, not
+   *  necessarily `matched`. `available` lists every variant key. An unknown
+   *  `variant` is a 400 `variant_not_found`. */
+  variant: { matched: string | null; forced: boolean; available: string[] };
+}
+
 /** Create an automation. See {@link ValidateAutomationInput} for what omitting
  *  `connections` means. */
 export interface CreateAutomationInput {
@@ -368,6 +461,17 @@ export class Automations {
    *  `issues[]`, not as a 400. */
   validate(input: ValidateAutomationInput): Promise<AutomationValidation> {
     return this.request<AutomationValidation>("POST", "/v1/automations/validate", input);
+  }
+
+  /** Render what a `send_email` step would send for a contact and a sample
+   *  event, using the published template and the worker's own variable
+   *  resolution. Sends nothing. Catches a mistyped `{ var: "event.properties.x" }`
+   *  mapping before the automation is enabled. Errors: 400 `unsupported_step_type`,
+   *  404 `template_not_found`, 422 `template_not_published`. With
+   *  `config.variants`, the first matching variant renders (or the one named by
+   *  `variant`); see `result.variant`. */
+  previewStep(input: PreviewAutomationStepInput): Promise<AutomationStepPreview> {
+    return this.request<AutomationStepPreview>("POST", "/v1/automations/preview-step", input);
   }
 
   /** Create an automation (born `draft`). With `validate_only: true` nothing is

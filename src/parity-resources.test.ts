@@ -448,6 +448,51 @@ test("automations.validate POSTs /v1/automations/validate with publication_id in
   });
 });
 
+test("automations.previewStep POSTs /v1/automations/preview-step and returns the rendered step", async () => {
+  const reply = {
+    object: "automation_step_preview",
+    template_id: "tpl_1",
+    template_version: "published",
+    subject: "Hi Ada",
+    html: "<p>Hi Ada</p>",
+    text: "Hi Ada",
+    variables: { name: { value: "Ada", source: "event" } },
+    warnings: [],
+    variant: { matched: "pro", forced: true, available: ["pro"] }
+  };
+  const { mailtea, mock } = client({ json: reply });
+  const input = {
+    publication_id: PUB,
+    step: {
+      type: "send_email" as const,
+      config: {
+        template_id: "tpl_1",
+        subject: "Hi {{name}}",
+        variables: { name: { var: "event.properties.name", default: "friend" } },
+        variants: [
+          {
+            key: "pro",
+            when: { type: "rule", field: "contact.properties.plan", operator: "eq", value: "pro" },
+            template_id: "tpl_pro"
+          }
+        ]
+      }
+    },
+    variant: "pro",
+    contact_id: "con_1",
+    trigger: { type: "event", key: "signup" },
+    event: { name: "signup", properties: { name: "Ada" } }
+  };
+  const result = await mailtea.automations.previewStep(input);
+  assert.equal(result.variables["name"]?.source, "event");
+  assert.equal(result.template_version, "published");
+  assert.deepEqual(result.variant, { matched: "pro", forced: true, available: ["pro"] });
+  const call = requireCall(mock.calls, 0);
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://api.mailtea.app/v1/automations/preview-step");
+  assert.deepEqual(JSON.parse(call.body ?? "null"), input);
+});
+
 test("automations.create POSTs /v1/automations with publication_id in the body", async () => {
   const { mailtea, mock } = client({
     json: { object: "automation", id: "aut_1", status: "draft" }

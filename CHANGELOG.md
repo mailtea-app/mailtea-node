@@ -2,6 +2,11 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Added: `send_email` steps accept `config.variants` (`SendEmailVariant`: `key`, `label?`, `when` rule, `template_id`, `subject?`, `variables?`; max 10, first match wins, else the step's defaults). A variant's `variables` replaces the default mapping when present and inherits it when absent. `automations.previewStep` takes `variant` (a key forces that variant, `null` forces the step's own template, omitted picks like a real send) and returns `variant: { matched, forced, available }`. `variant.matched` is the real pick and `forced` means the shown email is the requested one (unknown key: 400 `variant_not_found`). New validation codes `too_many_variants`, `invalid_variant_key`, `duplicate_variant_key`.
+- Added: `automations.previewStep(input)` renders what a `send_email` step would send for a contact and a sample event (`POST /v1/automations/preview-step`, needs `automations:read`). It uses the published template and the worker's own variable resolution, sends nothing, and returns `subject`, `html`, `text`, each variable with its `source`, and `warnings`. A mistyped `{ var: "event.properties.x" }` mapping shows up as `source: "missing"` or a warning before you enable the automation. Warning codes include `variable_unresolved`, `variable_unmapped`, `mapping_unused`, `subject_empty` and `contact_not_active`; the set is open. It needs `automations:read` and `templates:read`; passing `contact_id` also needs `contacts:read` (403 otherwise, 404 `contact_not_found` for an unknown contact). `trigger: { type, key? }` (the trigger_type and the trigger step's key) seeds `steps.<key>.event` like a real run. `subject_empty` also fires when the subject renders empty, and `variable_unresolved` can carry `source: "default"` when a fallback filled a missing path. Errors: 400 `unsupported_step_type`, 404 `template_not_found`, 422 `template_not_published`.
+
 ## 0.23.0 (2026-10-16)
 
 - Added: `emails.inbound.reply` takes `to` (a string or a list: the original's From and/or Reply-To addresses) and `headers` (only `Auto-Submitted` and `X-Auto-Response-Suppress`).

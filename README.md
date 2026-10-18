@@ -72,6 +72,7 @@ export MAILTEA_API_BASE_URL="http://localhost:7787"
 | `apiKeys.create / list / revoke` | Manage API keys (`settings:write`). `create({ mode: "test" })` mints a test key |
 | `automations.create / list / get / update / delete` | Manage automations — a versioned graph of `steps` + `connections` |
 | `automations.validate(input)` | Dry-run a graph that does not exist yet → `{ valid, issues }` |
+| `automations.previewStep(input)` | Render what a `send_email` step would send for a contact and a sample event, with the worker's own variable resolution. Sends nothing. Check `variables[*].source` and `warnings` (including `subject_empty`, `contact_not_active` and `variant_rule_needs_run`) before activating. needs `templates:read`; `contact_id` also needs `contacts:read`; `trigger` seeds `steps.<key>.event`. A `send_email` step can carry `config.variants` (`SendEmailVariant[]`, max 10, first matching `when` rule wins); pass `variant: "<key>"` to force one, and read `result.variant` for what matched |
 | `automations.activate / pause / archive` | Lifecycle. `pause` keeps in-flight runs by default; `archive` cancels them by default |
 | `automations.listVersions / getVersion` | Version history (in-flight runs pin to the version they started on) |
 | `automations.metrics(id, params)` | Per-step funnel, branch splits and send stats (test runs excluded) |
