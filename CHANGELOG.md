@@ -2,8 +2,9 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
-## Unreleased
+## 0.24.0 (2026-11-02)
 
+- Changed (API): `emails.list`, `emails.get` and the `emails.inbound` reads need `issues:read`, `contacts:read` or `issues:send`; every preset that read mail before still does, and `drafts_only` stays refused.
 - Changed (API): `emails.list`, `emails.get` and the `emails.inbound` reads get 403 for a key that holds `issues:write` but neither `issues:send` nor `contacts:read` (the `drafts_only` shape); an `issues:read` key reads them as before. `segments.list` and `segments.get` accept `issues:write` as well as `contacts:read`, and return `query_filter: null` to a key without `contacts:read`. `PATCH /v1/posts/:id` on a draft published to the web needs `issues:send`.
 - Added: `ApiKeyPermission` takes `drafts_only`. `apiKeys.create({ permission: "drafts_only" })` mints a key that writes and previews drafts but can never send, schedule or test send, and cannot read contacts: for an agent whose drafts a person sends. Changed (API): a test send (`POST /v1/posts/:id/test`) now needs `issues:send` rather than `issues:write`; every shipped preset that could test send before still can.
 - Added: `send_email` steps accept `config.variants` (`SendEmailVariant`: `key`, `label?`, `when` rule, `template_id`, `subject?`, `variables?`; max 10, first match wins, else the step's defaults). A variant's `variables` replaces the default mapping when present and inherits it when absent. `automations.previewStep` takes `variant` (a key forces that variant, `null` forces the step's own template, omitted picks like a real send) and returns `variant: { matched, forced, available }`. `variant.matched` is the real pick and `forced` means the shown email is the requested one (unknown key: 400 `variant_not_found`). New validation codes `too_many_variants`, `invalid_variant_key`, `duplicate_variant_key`.
