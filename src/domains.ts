@@ -238,12 +238,13 @@ export interface ListDomainsParams {
 }
 
 /**
- * The CNAME row on a tracking sub-domain. Narrower than {@link DomainRecord}:
- * a tracking response carries only the DNS fields, with no `record` role and
- * no TTL advice.
+ * A DNS row on a tracking sub-domain: the CNAME, and once a verify has
+ * registered the host, the `_railway-verify` TXT that proves ownership.
+ * Narrower than {@link DomainRecord}: a tracking response carries only the DNS
+ * fields, with no `record` role and no TTL advice.
  */
 export interface TrackingDomainRecord {
-  type: "CNAME";
+  type: "CNAME" | "TXT";
   name: string;
   value: string;
   status: DomainStatus;
@@ -262,7 +263,7 @@ export interface TrackingDomain {
    * links are still served from the platform host.
    */
   attached: boolean;
-  /** The CNAME record to add. Present on create/verify. */
+  /** The records to add: the CNAME, then the ownership TXT after a verify. Present on create/verify. */
   records?: TrackingDomainRecord[];
   verified_at: string | null;
   created_at: string;
