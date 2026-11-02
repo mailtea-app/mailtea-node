@@ -56,6 +56,7 @@ export type DomainRefusalCode =
   | "region_immutable"
   | "tls_not_available"
   | "tracking_subdomain_invalid"
+  | "tracking_not_available"
   | "domain_held_elsewhere"
   | "domain_released"
   | "domain_managed"

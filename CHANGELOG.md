@@ -2,6 +2,10 @@
 
 All notable changes to `mailtea-sdk` are documented here.
 
+## Unreleased
+
+- Added: `DomainRefusalCode` takes `tracking_not_available`. A deployment that cannot serve tracking subdomains refuses every `tracking_subdomain` (and `POST /v1/domains/:id/tracking-domains`) with 400 and this code, instead of handing out a CNAME that never goes live. Removing one with `null` still works.
+
 ## 0.24.0 (2026-11-02)
 
 - Changed (API): `emails.list`, `emails.get` and the `emails.inbound` reads need `issues:read`, `contacts:read` or `issues:send`; every preset that read mail before still does, and `drafts_only` stays refused.
