@@ -4,15 +4,17 @@ import type { EmailMode } from "./types.js";
 /**
  * `drafts_only` writes and previews drafts but can never send, schedule or
  * test send, and cannot read contacts: for an agent whose drafts a human sends.
+ * `drafts_and_templates` adds creating, editing and publishing templates, and
+ * still never sends. Publishing a template changes every later send of it.
  */
-export type ApiKeyPermission = "full_access" | "sending_access" | "drafts_only";
+export type ApiKeyPermission = "full_access" | "sending_access" | "drafts_only" | "drafts_and_templates";
 
 export interface CreateApiKeyInput {
   /** A label for the key. 1–50 characters. */
   name: string;
   /** Access level. Defaults to `full_access`. */
   permission?: ApiKeyPermission;
-  /** Publication to scope a `sending_access` or `drafts_only` key to. */
+  /** Publication to scope any key but `full_access` to. */
   domain_id?: string;
   /**
    * `live` (default) or `test`. A test key is prefixed `mt_test_`, takes the

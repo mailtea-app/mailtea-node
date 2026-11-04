@@ -4,6 +4,7 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `ApiKeyPermission` takes `drafts_and_templates`: a `drafts_only` key plus `templates:write`. It never sends; `POST /v1/templates/:id/test` returns 403 for it.
 - Changed (API): a tracking domain's `attached` turns `true` only once its host has a certificate, usually a few minutes after the first verify, so verify again then. The only record to publish is the CNAME.
 - Added: `DomainRefusalCode` takes `tracking_not_available`. A deployment that cannot serve tracking subdomains refuses every `tracking_subdomain` (and `POST /v1/domains/:id/tracking-domains`) with 400 and this code, instead of handing out a CNAME that never goes live. Removing one with `null` still works.
 
