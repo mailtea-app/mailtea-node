@@ -244,6 +244,11 @@ export class Posts {
    * subscribers see it. Renders the post exactly as a subscriber would receive
    * it and delivers a one-shot `[TEST]` email — it does NOT send to the
    * audience. Returns `{ sent_to, failed_to }`.
+   *
+   * In a team's first 7 days every recipient must be a verified member of the
+   * team (403, reason `test_send_recipient_restricted`). A team can send at
+   * most 50 test copies in any rolling hour, one per recipient (429, reason
+   * `test_send_rate_limited`).
    */
   sendTest(id: string, input: SendPostTestInput): Promise<PostTestSendResult> {
     return this.request<PostTestSendResult>(
