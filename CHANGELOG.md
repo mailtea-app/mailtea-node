@@ -4,6 +4,7 @@ All notable changes to `mailtea-sdk` are documented here.
 
 ## Unreleased
 
+- Added: `DomainRefusalCode` takes `dns_record_not_found`, `dns_record_mismatch` and `dns_lookup_failed`. Changed (API): when `domains.verify` cannot confirm the ownership TXT record, the 400 carries one of these as `code` (readable as `MailteaError.code`), and `error` now names the record, the value expected and, on a mismatch, up to three values found. `dns_lookup_failed` is temporary: verify again in a minute.
 - Changed (API): `posts.sendTest` gets 403 `test_send_recipient_restricted` when a team in its first 7 days addresses anyone but its verified members, and 429 `test_send_rate_limited` past 50 test copies per team in a rolling hour. Template test sends (`POST /v1/templates/:id/test`) follow the same rules. The doc comment says so.
 - Added: `ApiKeyPermission` takes `drafts_and_templates`: a `drafts_only` key plus `templates:write`. It never sends; `POST /v1/templates/:id/test` returns 403 for it.
 - Changed (API): a tracking domain's `attached` turns `true` only once its host has a certificate, usually a few minutes after the first verify, so verify again then. The only record to publish is the CNAME.

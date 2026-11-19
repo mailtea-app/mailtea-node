@@ -70,7 +70,10 @@ export type DomainRefusalCode =
   | "claim_release_failed"
   | "claim_provisioning_failed"
   | "claim_internal_error"
-  | "claim_expired";
+  | "claim_expired"
+  | "dns_record_not_found"
+  | "dns_record_mismatch"
+  | "dns_lookup_failed";
 
 export interface DomainRecord {
   /**
