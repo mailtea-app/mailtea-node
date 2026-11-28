@@ -28,7 +28,15 @@ export type DomainRecordRole =
   | "SPF"
   | "MX"
   | "Return-Path"
-  | "Tracking";
+  | "Tracking"
+  /**
+   * A recommendation, never a requirement: it comes last, for an email domain
+   * Mailtea has checked, and a domain verifies and sends without it. Its
+   * `status` is `verified` when a DMARC record already exists (keep it) and
+   * `recommended` when none was found, never `pending`. Do not wait for it to
+   * read `verified`.
+   */
+  | "DMARC";
 
 /**
  * How far along ONE record is. `not_started` means nothing has ever checked it.
@@ -37,9 +45,10 @@ export type DomainRecordRole =
  * receiving MX is checked by `verify` and the answer is stored, so a domain
  * nobody has verified reads `not_started` and one that has reads what the last
  * verify found. Ownership and tracking rows never report it: for them `pending`
- * is a genuine in-progress state.
+ * is a genuine in-progress state. `recommended` is the `DMARC` row's status
+ * when no DMARC record was found: advice, nothing waits on it.
  */
-export type DomainRecordStatus = "not_started" | "pending" | "verified" | "failed";
+export type DomainRecordStatus = "not_started" | "pending" | "verified" | "failed" | "recommended";
 
 /**
  * Every machine-readable refusal a domain or claim request can carry, in the
@@ -89,9 +98,27 @@ export interface DomainRecord {
   ttl?: "Auto";
   /** MX priority (present on the receiving and return-path MX records). */
   priority?: number;
-  /** The pre-`record` role name, kept for compatibility: `receiving`, `dkim`, `return-path`, `tracking`. */
+  /** The pre-`record` role name, kept for compatibility: `receiving`, `dkim`, `return-path`, `tracking`, `dmarc`. */
   purpose?: string;
   status: DomainRecordStatus;
+  /**
+   * What Mailtea last found in DNS for this record, or `null` when it has not
+   * looked yet or found nothing. It is what was found, not what to publish:
+   * `value` is still the value to publish.
+   */
+  found_value?: string | null;
+  /**
+   * One plain sentence on what to do next for this record, or `null` when
+   * nothing is needed. When a domain is not verified, read this and relay it to
+   * the person who manages its DNS.
+   *
+   * Do not wait for every record to read `verified`: optional records (the
+   * receiving `MX` and `Tracking`) may stay `pending`, and `DMARC` reads
+   * `recommended` until one is published. Use the
+   * domain's own `status`. An existing DMARC record is never replaced by the
+   * `DMARC` row's starting value (`v=DMARC1; p=none;`).
+   */
+  next_step?: string | null;
 }
 
 export interface Domain {
@@ -454,7 +481,11 @@ export class Domains {
     );
   }
 
-  /** Retrieve a single domain, including its DNS `records`. */
+  /**
+   * Retrieve a single domain, including its DNS `records`. When the domain is
+   * not verified, read each record's `next_step` and relay it. Do not wait for
+   * every record to read `verified`: use the domain's own `status`.
+   */
   get(id: string, params: { publication_id: string }): Promise<Domain> {
     return this.request<Domain>(
       "GET",
